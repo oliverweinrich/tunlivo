@@ -1,0 +1,11 @@
+*
+!Dockerfile
+!entrypoint.sh
+!healthcheck.sh
+!configure.sh
+!pairing/
+!pairing/*.go
+!pairing/go.mod
+!inventory.awk
+!legal/
+!legal/**

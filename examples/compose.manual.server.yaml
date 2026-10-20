@@ -1,0 +1,29 @@
+name: tunlivo-server
+services:
+  gateway:
+    image: oliverweinrich/tunlivo:1.0.0
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE, SETUID, SETGID]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs: [/run, /tmp]
+    environment:
+      WG_LISTEN_PORT: "51820"
+      WG_MTU: "1420"
+      WG_ADDRESS: "10.66.66.1/24"
+      WG_PRIVATE_KEY: "SERVER_PRIVATE_KEY"
+      # PUBLIC_KEY ALLOWED_IPS ENDPOINT_OR_DASH KEEPALIVE_SECONDS
+      WG_PEERS: |
+        CLIENT_PUBLIC_KEY 10.66.66.2/32 - 0
+      # One rule per line: tcp/udp LISTEN_PORT TARGET_HOST:TARGET_PORT
+      PROXY_ROUTES: |
+        tcp 8080 10.66.66.2:8080
+    ports:
+      - "51820:51820/udp"
+      - "8080:8080/tcp"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

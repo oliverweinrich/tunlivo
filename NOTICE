@@ -1,0 +1,15 @@
+Tunlivo
+Copyright 2026 Oliver Weinrich
+
+Tunlivo's original source code and documentation are licensed under the
+Apache License, Version 2.0. Third-party components retain their own licenses.
+The Apache-2.0 license does not relicense the bundled Alpine packages,
+WireGuard tools, nginx, Go standard library, or their dependencies.
+
+This is an independent project. It is not an official WireGuard product and
+is not endorsed by or affiliated with the WireGuard project.
+"WireGuard" and the "WireGuard" logo are registered trademarks of
+Jason A. Donenfeld. https://www.wireguard.com/
+
+Third-party notices, license texts, source information and the installed
+package inventory accompany each release. See THIRD_PARTY_NOTICES.md.

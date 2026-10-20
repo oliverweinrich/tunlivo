@@ -1,0 +1,15 @@
+/release-output/
+/release-cache/
+.DS_Store
+/image/legal/alpine/
+/image/legal/release.json
+.env
+.env.*
+!.env.example
+!.env.template
+*.key
+*.pem
+*.p12
+*.pfx
+/data/
+/image/pairing/pairing
