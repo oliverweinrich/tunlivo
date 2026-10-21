@@ -15,7 +15,7 @@ The client initiates the connection. It needs neither a static public IP nor
 router port forwarding. The tunnel connects the gateway containers; it does
 not automatically route all traffic from either host.
 
-**Image:** [`oliverweinrich/tunlivo:1.0.2`](https://hub.docker.com/r/oliverweinrich/tunlivo).
+**Image:** [`oliverweinrich/tunlivo:1.0.3`](https://hub.docker.com/r/oliverweinrich/tunlivo).
 
 To build the image locally, run this from the repository root:
 
@@ -108,8 +108,8 @@ Generate a separate key pair on **each** machine:
 
 ```sh
 umask 077
-docker run --rm --network none --entrypoint wg oliverweinrich/tunlivo:1.0.2 genkey > private.key
-docker run --rm -i --network none --entrypoint wg oliverweinrich/tunlivo:1.0.2 pubkey < private.key > public.key
+docker run --rm --network none --entrypoint wg oliverweinrich/tunlivo:1.0.3 genkey > private.key
+docker run --rm -i --network none --entrypoint wg oliverweinrich/tunlivo:1.0.3 pubkey < private.key > public.key
 ```
 
 | Placeholder          | Value                                  |

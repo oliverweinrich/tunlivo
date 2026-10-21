@@ -93,7 +93,9 @@ git push origin v1.0.1
 ```
 
 If the `dockerhub` environment requires your approval, open the **Publish release** run and choose **Review deployments → Approve and deploy**.
-In the current workflow this approval gates the whole release job, including the builds and tests.
+This approval gates publication. Source preparation, scans and native AMD64/ARM64 tests finish before approval is requested.
+
+The preparation job exports the multi-platform candidate image once. Both native test runners and the publication job load that same checksummed artifact; the runtime image is not rebuilt between testing and publication. QEMU remains available for source preparation and cross-platform file checks, but the WireGuard integration tests run on matching hardware.
 
 Use the next unused version, not 1.0.1 repeatedly. The tag must exactly match `VERSION` and its commit must be part of `main`.
 Alternatively, after committing a new version to `main`, run **Publish release** manually on `main`; the workflow creates the tag through the GitHub release.
