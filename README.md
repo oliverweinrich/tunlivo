@@ -15,12 +15,13 @@ The client initiates the connection. It needs neither a static public IP nor
 router port forwarding. The tunnel connects the gateway containers; it does
 not automatically route all traffic from either host.
 
-**Image:** [`oliverweinrich/tunlivo:1.0.0`](https://hub.docker.com/r/oliverweinrich/tunlivo).
+**Image:** [`oliverweinrich/tunlivo:1.0.1`](https://hub.docker.com/r/oliverweinrich/tunlivo).
 
 To build the image locally, run this from the repository root:
 
 ```sh
-docker build -t oliverweinrich/tunlivo:1.0.0 -t tunlivo:1.0.0 image
+version="$(cat VERSION)"
+docker build --build-arg VERSION="$version" -t "oliverweinrich/tunlivo:$version" -t "tunlivo:$version" image
 ```
 
 ## Requirements
@@ -67,9 +68,9 @@ Recommended for one server-client pair. Each gateway generates its own keys.
    on the client. Update these values under `environment`:
 
    ```yaml
-   PAIR_SERVER: "YOUR_SERVER:51821"
-   WG_ENDPOINT: "YOUR_SERVER:51820"
-   PAIR_CODE: "COMPLETE_INVITATION_FROM_SERVER"
+   PAIR_SERVER: 'YOUR_SERVER:51821'
+   WG_ENDPOINT: 'YOUR_SERVER:51820'
+   PAIR_CODE: 'COMPLETE_INVITATION_FROM_SERVER'
    ```
 
    Replace `YOUR_SERVER` with the server's DNS name or public IPv4 address.
@@ -107,8 +108,8 @@ Generate a separate key pair on **each** machine:
 
 ```sh
 umask 077
-docker run --rm --network none --entrypoint wg oliverweinrich/tunlivo:1.0.0 genkey > private.key
-docker run --rm -i --network none --entrypoint wg oliverweinrich/tunlivo:1.0.0 pubkey < private.key > public.key
+docker run --rm --network none --entrypoint wg oliverweinrich/tunlivo:1.0.1 genkey > private.key
+docker run --rm -i --network none --entrypoint wg oliverweinrich/tunlivo:1.0.1 pubkey < private.key > public.key
 ```
 
 | Placeholder          | Value                                  |
@@ -178,6 +179,11 @@ To run the isolated Docker integration tests after the local build above:
 ```sh
 bash test-integration.sh
 ```
+
+## Updates and releases
+
+See the [maintenance workflow](.github/README.md) for dependency updates,
+automated checks and publishing a new version.
 
 ## License and third-party software
 

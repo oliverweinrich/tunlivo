@@ -13,3 +13,7 @@
 *.pfx
 /data/
 /image/pairing/pairing
+/reports/
+FEATURES.md
+/node_modules/
+/.husky/_/

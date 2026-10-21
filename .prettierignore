@@ -1,0 +1,20 @@
+# Generated files and local state
+node_modules/
+.husky/_/
+release-output/
+release-cache/
+reports/
+data/
+FEATURES.md
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Preserve license texts and byte-identical copies used by release checks
+LICENSE
+NOTICE
+THIRD_PARTY_NOTICES.md
+image/legal/

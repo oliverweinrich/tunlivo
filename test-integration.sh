@@ -5,7 +5,7 @@
 set -euo pipefail
 umask 077
 root="$(cd "$(dirname "$0")" && pwd)"
-image="${TUNLIVO_TEST_IMAGE:-tunlivo:1.0.0}"
+image="${TUNLIVO_TEST_IMAGE:-tunlivo:$(cat "$root/VERSION")}"
 
 # Jeder Testlauf besitzt eigene Container, ein Netzwerk und temporäre Dateien.
 # Keine Containerlogs ausgeben: Sie können gültige Einladungen enthalten.
