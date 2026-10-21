@@ -9,14 +9,10 @@ concurrency:
   group: tunlivo-publish
   cancel-in-progress: false
 jobs:
-  release:
+  prepare:
+    name: Prepare release candidate
     runs-on: ubuntu-24.04
     timeout-minutes: 90
-    environment: dockerhub
-    permissions:
-      contents: write
-    env:
-      TUNLIVO_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY || 'oliverweinrich/tunlivo' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,9 +27,7 @@ jobs:
           npm ci --ignore-scripts
           npm run format:check
           npm audit --audit-level=high
-      - name: Validate release ref and unused version
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Validate release ref
         run: |
           source release/common.sh
           git merge-base --is-ancestor HEAD origin/main
@@ -42,7 +36,6 @@ jobs:
           else
             test "$GITHUB_REF" = refs/heads/main
           fi
-          bash release/publish.sh --check
       - uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0
         with:
           daemon-config: |
@@ -57,12 +50,6 @@ jobs:
         run: |
           docker buildx build --platform linux/amd64,linux/arm64 --load             --build-arg VERSION="$(cat VERSION)" -t "tunlivo:$(cat VERSION)" image
           bash release/check.sh --local
-      - name: Test both platforms
-        run: |
-          sudo modprobe wireguard
-          for arch in amd64 arm64; do
-            DOCKER_DEFAULT_PLATFORM="linux/$arch" bash test-integration.sh
-          done
       - name: Scan the tested image for both platforms
         run: |
           for arch in amd64 arm64; do
@@ -82,6 +69,104 @@ jobs:
             release-output/*/trivy-*.json
           if-no-files-found: warn
           retention-days: 7
+      - name: Export the exact release candidate
+        run: |
+          mkdir -p candidate
+          docker image save -o candidate/image.tar "tunlivo:$(cat VERSION)"
+          (cd candidate && sha256sum image.tar > image.tar.sha256)
+          tar -czf candidate/release-state.tar.gz "release-output/$(cat VERSION)"
+      - name: Transfer candidate image
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-image
+          path: |
+            candidate/image.tar
+            candidate/image.tar.sha256
+          compression-level: 0
+          retention-days: 7
+      - name: Transfer matching release state
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-state
+          path: candidate/release-state.tar.gz
+          compression-level: 0
+          retention-days: 7
+  test:
+    name: Test release (${{ matrix.arch }})
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0
+        with:
+          daemon-config: |
+            { "features": { "containerd-snapshotter": true } }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-image
+          path: candidate
+      - name: Load and test the candidate on native hardware
+        env:
+          DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          (cd candidate && sha256sum -c image.tar.sha256)
+          docker image load -i candidate/image.tar
+          test "$(docker info --format '{{.Architecture}}')" = "$(case "$EXPECTED_ARCH" in amd64) echo x86_64 ;; arm64) echo aarch64 ;; esac)"
+          test "$(docker image inspect --platform "linux/$EXPECTED_ARCH" --format '{{.Architecture}}' "tunlivo:$(cat VERSION)")" = "$EXPECTED_ARCH"
+          sudo modprobe wireguard
+          bash test-integration.sh
+  release:
+    name: Publish tested release
+    needs: [prepare, test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: dockerhub
+    permissions:
+      contents: write
+    env:
+      TUNLIVO_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY || 'oliverweinrich/tunlivo' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0
+        with:
+          daemon-config: |
+            { "features": { "containerd-snapshotter": true } }
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver: docker
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-image
+          path: candidate
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-state
+          path: candidate
+      - name: Validate unused version before publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash release/publish.sh --check
+      - name: Restore the tested image and matching sources
+        run: |
+          (cd candidate && sha256sum -c image.tar.sha256)
+          docker image load -i candidate/image.tar
+          tar -xzf candidate/release-state.tar.gz
+          bash release/check.sh --local
       - name: Log in to Docker Hub
         env:
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
