@@ -9,7 +9,7 @@ RUN go test ./...
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /gateway-pair .
 RUN mkdir /go-notices && cd /usr/local/go && cp LICENSE PATENTS /go-notices/ && find src -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'NOTICE*' \) -exec cp --parents '{}' /go-notices/ \;
 
-FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS runtime
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS runtime
 RUN apk upgrade --no-cache \
     && apk add --no-cache bash iproute2 netcat-openbsd wireguard-tools nginx nginx-mod-stream
 COPY entrypoint.sh healthcheck.sh configure.sh /usr/local/bin/
