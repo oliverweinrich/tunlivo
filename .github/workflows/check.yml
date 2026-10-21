@@ -27,6 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -44,7 +45,7 @@ jobs:
           source release/common.sh
           mkdir -p reports
           bash release/test.sh
-          node --test .github/maintenance-issue.test.cjs
+          npm run test:tooling
           sudo modprobe wireguard
       - name: Build pairing tools and run Go checks
         run: |
@@ -56,6 +57,17 @@ jobs:
           docker buildx build --pull --no-cache-filter runtime --load             --build-arg VERSION="$(cat VERSION)" -t tunlivo:ci image
       - name: Test release output permissions
         run: bash release/test-permissions.sh tunlivo:ci
+      - name: Build and scan source collection dependencies
+        run: |
+          alpine_image="$(awk '$1=="FROM" && $3=="AS" && $4=="runtime" {print $2}' image/Dockerfile)"
+          docker build --pull --no-cache --build-arg "ALPINE_IMAGE=$alpine_image" \
+            -f release/Source.Dockerfile -t tunlivo:source-helper-check release
+          docker run --rm --network none --entrypoint awk \
+            -v "$PWD/image/inventory.awk:/inventory.awk:ro" tunlivo:source-helper-check \
+            -f /inventory.awk /lib/apk/db/installed > reports/source-helper-packages.tsv
+          npm run dependencies:report
+          TUNLIVO_SCAN_REPORT="$PWD/reports/trivy-source-helper.json" \
+            bash .github/scan.sh tunlivo:source-helper-check
       - name: Compare installed packages with the published image
         run: |
           docker run --rm --network none --entrypoint cat tunlivo:ci             /usr/share/licenses/tunlivo/packages.tsv > reports/packages-candidate.tsv

@@ -9,12 +9,16 @@
     "prepare": "husky",
     "format": "prettier --write . --ignore-unknown",
     "format:check": "prettier --check . --ignore-unknown",
-    "format:staged": "lint-staged"
+    "format:staged": "lint-staged",
+    "dependencies": "node .github/dependencies.cjs --write && prettier --write DEPENDENCIES.md",
+    "dependencies:report": "node .github/dependencies.cjs --offline --output reports/dependencies.md",
+    "test:tooling": "node --test .github/*.test.cjs"
   },
   "devDependencies": {
     "husky": "9.1.7",
     "lint-staged": "17.6.0",
-    "prettier": "3.9.10"
+    "prettier": "3.9.10",
+    "yaml": "2.9.1"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,jsx,ts,tsx,json,jsonc,yml,yaml,md,mdx,css,scss,html}": "prettier --write --ignore-unknown"

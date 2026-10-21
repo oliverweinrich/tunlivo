@@ -46,6 +46,10 @@ jobs:
           driver: docker
       - name: Prepare matching sources and licenses with fresh packages
         run: bash release/prepare.sh
+      - name: Scan source collection dependencies
+        run: |
+          TUNLIVO_SCAN_REPORT="$PWD/release-output/$(cat VERSION)/trivy-source-helper.json" \
+            bash .github/scan.sh tunlivo-source-helper:local
       - name: Build the final multi-platform image
         run: |
           docker buildx build --platform linux/amd64,linux/arm64 --load             --build-arg VERSION="$(cat VERSION)" -t "tunlivo:$(cat VERSION)" image

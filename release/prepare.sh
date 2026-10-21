@@ -32,7 +32,9 @@ alpine_image="$(awk '$1=="FROM" && $3=="AS" && $4=="runtime" {print $2}' "$root/
 [[ "$alpine_image" =~ ^alpine:[0-9]+\.[0-9]+([.][0-9]+)?@sha256:[0-9a-f]{64}$ ]] || {
   echo 'Cannot determine pinned Alpine runtime base.' >&2; exit 1;
 }
-docker build --build-arg "ALPINE_IMAGE=$alpine_image" -t tunlivo-source-helper:local \
+helper_options=(--build-arg "ALPINE_IMAGE=$alpine_image")
+if [[ "${TUNLIVO_REFRESH:-1}" == 1 ]]; then helper_options+=(--pull --no-cache); fi
+docker build "${helper_options[@]}" -t tunlivo-source-helper:local \
   -f "$root/release/Source.Dockerfile" "$root/release"
 bash "$root/release/test-permissions.sh" tunlivo-source-helper:local
 docker run --rm --security-opt no-new-privileges:true \
@@ -56,6 +58,10 @@ cp "$root/LICENSE" "$root/NOTICE" "$root/README.md" "$root/THIRD_PARTY_NOTICES.m
   "$root/.gitignore" "$root/VERSION" "$root/test-integration.sh" "$output/project/"
 cp "$root/package.json" "$root/package-lock.json" "$root/.prettierrc.json" \
   "$root/.prettierignore" "$root/.npmrc" "$root/.node-version" "$output/project/"
+mkdir -p "$output/project/docs"
+cp "$root/SECURITY.md" "$root/AGENTS.md" "$root/FEATURES.md" "$root/DEPENDENCIES.md" "$output/project/"
+cp "$root/docs/OPERATIONS.md" "$root/docs/VERSIONING.md" \
+  "$root/docs/RELEASE_CHECKLIST.md" "$output/project/docs/"
 mkdir -p "$output/project/.husky" "$output/project/.vscode"
 cp "$root/.husky/pre-commit" "$root/.husky/pre-push" "$output/project/.husky/"
 cp "$root/.vscode/settings.json" "$root/.vscode/extensions.json" "$output/project/.vscode/"

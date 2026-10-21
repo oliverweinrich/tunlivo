@@ -41,8 +41,8 @@ are in [`examples/`](examples/).
 
 | Setup                 | Public server                                                       | Client                                                              |
 | --------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| One-time-code pairing | [compose.pairing.server.yaml](examples/compose.pairing.server.yaml) | [compose.pairing.client.yaml](examples/compose.pairing.client.yaml) |
-| Manual keys           | [compose.manual.server.yaml](examples/compose.manual.server.yaml)   | [compose.manual.client.yaml](examples/compose.manual.client.yaml)   |
+| One-time-code pairing | [compose.pairing-server.yaml](examples/compose.pairing-server.yaml) | [compose.pairing-client.yaml](examples/compose.pairing-client.yaml) |
+| Manual keys           | [compose.manual-server.yaml](examples/compose.manual-server.yaml)   | [compose.manual-client.yaml](examples/compose.manual-client.yaml)   |
 
 The examples expose an HTTP demo service on server port `8080`. Replace it with
 any TCP/UDP service after confirming the connection. Choose one setup method
@@ -182,8 +182,12 @@ bash test-integration.sh
 
 ## Updates and releases
 
+See the [dependency inventory](DEPENDENCIES.md) for versions and update coverage.
 See the [maintenance workflow](.github/README.md) for dependency updates,
 automated checks and publishing a new version.
+For deployments, read [backup, upgrades and recovery](docs/OPERATIONS.md)
+and the [versioning policy](docs/VERSIONING.md).
+Report vulnerabilities using the [security policy](SECURITY.md).
 
 ## License and third-party software
 
