@@ -4,7 +4,8 @@
 set -euo pipefail
 umask 022
 export CARCH="$(apk --print-arch)"
-export DISTFILES_MIRROR=https://distfiles.alpinelinux.org/distfiles/v3.23
+alpine_branch="$(cut -d. -f1,2 /etc/alpine-release)"
+export DISTFILES_MIRROR="https://distfiles.alpinelinux.org/distfiles/v$alpine_branch"
 # This helper only runs isolated in Docker, with release output/cache mounts.
 mkdir -p /output/alpine /output/licenses/alpine /cache/recipes /cache/distfiles
 awk -F '\t' 'NR>1 { print $4 "\t" $5 "\t" $2 }' /output/packages.tsv | sort -u > /tmp/origins

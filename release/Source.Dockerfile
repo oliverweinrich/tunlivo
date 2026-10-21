@@ -1,4 +1,7 @@
-FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
+# Copyright 2026 Oliver Weinrich
+# SPDX-License-Identifier: Apache-2.0
+ARG ALPINE_IMAGE
+FROM ${ALPINE_IMAGE}
 RUN apk add --no-cache bash abuild curl grep tar xz zstd
 COPY collect-sources.sh /usr/local/bin/collect-sources
 ENTRYPOINT ["/bin/bash", "/usr/local/bin/collect-sources"]

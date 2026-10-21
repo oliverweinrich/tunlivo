@@ -3,9 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-output="$root/release-output/1.0.0"
+source "$root/release/common.sh"
 mode="${1:-public}"
-image="${TUNLIVO_TEST_IMAGE:-tunlivo:1.0.0}"
 [[ "$mode" == public || "$mode" == --local ]] || { echo 'Aufruf: check.sh [--local]' >&2; exit 1; }
 if [[ "$mode" == public ]]; then
   : "${RELEASE_URL:?Öffentliche HTTPS-Adresse des Release-Verzeichnisses mit Quellen, Lizenzen und Checksummen setzen}"
@@ -16,7 +15,7 @@ test -f "$output/COMPLETE"
 work="$(mktemp -d "${TMPDIR:-/tmp}/tunlivo-release-check.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 if [[ "$mode" == public ]]; then
-for artifact in tunlivo-1.0.0-sources.tar.gz tunlivo-1.0.0-licenses.tar.gz packages.tsv SHA256SUMS; do
+for artifact in "tunlivo-$version-sources.tar.gz" "tunlivo-$version-licenses.tar.gz" packages.tsv SHA256SUMS; do
   curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 \
     "$RELEASE_URL/$artifact" -o "$work/$artifact"
   cmp "$work/$artifact" "$output/$artifact"
@@ -24,6 +23,8 @@ done
 fi
 # Compare release sources against the actual locally prepared multi-arch image.
 for architecture in amd64 arm64; do
+  actual_version="$(docker image inspect --platform "linux/$architecture" --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$image")"
+  [[ "$actual_version" == "$version" ]] || { echo "Image version $actual_version != $version" >&2; exit 1; }
   docker run --rm --platform "linux/$architecture" --network none --entrypoint cat \
     "$image" /usr/share/licenses/tunlivo/packages.tsv > "$work/packages-$architecture.tsv"
   cmp "$work/packages-$architecture.tsv" "$output/seed/linux_$architecture/packages.tsv"

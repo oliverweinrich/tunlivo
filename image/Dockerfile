@@ -10,7 +10,8 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
 RUN mkdir /go-notices && cd /usr/local/go && cp LICENSE PATENTS /go-notices/ && find src -type f \( -iname 'LICENSE*' -o -iname 'COPYING*' -o -iname 'NOTICE*' \) -exec cp --parents '{}' /go-notices/ \;
 
 FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS runtime
-RUN apk add --no-cache bash iproute2 netcat-openbsd wireguard-tools nginx nginx-mod-stream
+RUN apk upgrade --no-cache \
+    && apk add --no-cache bash iproute2 netcat-openbsd wireguard-tools nginx nginx-mod-stream
 COPY entrypoint.sh healthcheck.sh configure.sh /usr/local/bin/
 COPY --from=pairing /gateway-pair /usr/local/bin/gateway-pair
 COPY --from=pairing /go-notices/ /usr/share/licenses/tunlivo/go/
@@ -19,9 +20,11 @@ COPY inventory.awk /usr/local/share/tunlivo/inventory.awk
 RUN chmod 755 /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh /usr/local/bin/configure.sh \
     && awk -f /usr/local/share/tunlivo/inventory.awk /lib/apk/db/installed > /usr/share/licenses/tunlivo/packages.tsv \
     && sha256sum /usr/local/bin/gateway-pair /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh /usr/local/bin/configure.sh /usr/local/share/tunlivo/inventory.awk > /usr/share/licenses/tunlivo/runtime-files.sha256
+ARG VERSION=dev
 LABEL org.opencontainers.image.title="Tunlivo" \
       org.opencontainers.image.description="Independent TCP/UDP gateway using WireGuard and nginx" \
-      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.version="$VERSION" \
+      org.opencontainers.image.source="https://github.com/oliverweinrich/tunlivo" \
       org.opencontainers.image.authors="Oliver Weinrich" \
       org.opencontainers.image.licenses="Apache-2.0 AND LicenseRef-ThirdParty"
 HEALTHCHECK --interval=5s --timeout=3s --start-period=5s --retries=3 \

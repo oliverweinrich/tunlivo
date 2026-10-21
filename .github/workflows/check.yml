@@ -1,0 +1,111 @@
+name: Checks and dependency monitoring
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    name: Check (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Check formatting and development dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm run format:check
+          npm audit --audit-level=high
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Validate scripts and prepare host
+        run: |
+          for file in image/*.sh release/*.sh .github/*.sh test-integration.sh; do bash -n "$file"; done
+          source release/common.sh
+          mkdir -p reports
+          bash release/test.sh
+          node --test .github/maintenance-issue.test.cjs
+          sudo modprobe wireguard
+      - name: Build pairing tools and run Go checks
+        run: |
+          docker build --target pairing -t tunlivo:pairing-check image
+          docker run --rm --network none --entrypoint sh tunlivo:pairing-check -c             'go test -count=1 ./... && go vet ./... && test -z "$(gofmt -l *.go)"'
+      - name: Build with fresh Alpine packages
+        id: build
+        run: |
+          docker buildx build --pull --no-cache-filter runtime --load             --build-arg VERSION="$(cat VERSION)" -t tunlivo:ci image
+      - name: Compare installed packages with the published image
+        run: |
+          docker run --rm --network none --entrypoint cat tunlivo:ci             /usr/share/licenses/tunlivo/packages.tsv > reports/packages-candidate.tsv
+          docker pull oliverweinrich/tunlivo:latest
+          docker run --rm --network none --entrypoint cat oliverweinrich/tunlivo:latest             /usr/share/licenses/tunlivo/packages.tsv > reports/packages-published.tsv
+          status=0
+          diff -u reports/packages-published.tsv reports/packages-candidate.tsv > reports/packages.diff || status=$?
+          test "$status" -le 1
+          if test -s reports/packages.diff; then
+            echo '### Package changes compared with latest' >> "$GITHUB_STEP_SUMMARY"
+            echo '```diff' >> "$GITHUB_STEP_SUMMARY"
+            cat reports/packages.diff >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Installed package inventory matches the published image.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Test forwarding, pairing and restart behavior
+        env:
+          TUNLIVO_TEST_IMAGE: tunlivo:ci
+        run: bash test-integration.sh
+      - name: Scan for known vulnerabilities
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: bash .github/scan.sh tunlivo:ci
+      - name: Upload maintenance reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: maintenance-${{ matrix.arch }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 14
+  notify:
+    name: Update maintenance issue
+    needs: check
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: maintenance-*
+          path: reports
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHECK_RESULT: ${{ needs.check.result }}
+        with:
+          script: |
+            const notify = require('./.github/maintenance-issue.cjs');
+            await notify({ github, context, result: process.env.CHECK_RESULT });
