@@ -35,7 +35,7 @@ Set the released version explicitly, for example `version=X.Y.Z`, replacing the 
 
 - [ ] In disposable environments, start a fresh server/client pair from the published image with new volumes and the demo service. Confirm pairing, a service request through the public endpoint, a handshake and traffic counters. Recreate both gateways retaining those test volumes and confirm the association still works without `PAIR_CODE`.
 - [ ] For changes affecting UDP/manual peers, repeat those published-image paths as well. Preserve evidence of which architectures and paths were tested.
-- [ ] Review release notes and Docker Hub Overview for correct versions, migration instructions and source links. The workflow does not update the Overview automatically.
+- [ ] Review release notes and Docker Hub Overview for correct versions, migration instructions and source links. Confirm the automatic Overview sync/readback succeeds. For metadata-only corrections, use the separate **Update Docker Hub overview** workflow without rebuilding or republishing images.
 
 If any published verification fails, document the affected version and impact. Stop promoting it, inspect which assets are already public, and prepare a corrected new release. Do not silently replace versioned images, tags or source/license archives. Restore `latest` only as an explicit, reviewed recovery action pointing to a verified release.
 
@@ -46,6 +46,6 @@ Periodically confirm on GitHub:
 - [ ] The active ruleset targets `main`, requires PRs and both platform checks, and blocks force pushes/deletion. Zero required reviewer approvals is appropriate while working alone; keep the checks mandatory.
 - [ ] **Settings → Security → Advanced Security → Private vulnerability reporting** is enabled (GitHub may also surface this under the repository Security tab).
 - [ ] Dependabot alerts/security updates, Actions failure notifications and maintenance issue notifications are enabled as intended.
-- [ ] Only the publication job receives Docker Hub credentials and the `dockerhub` environment retains the intended approval rules.
+- [ ] Only the protected image publication and overview-sync jobs receive Docker Hub credentials and the `dockerhub` environment retains the intended approval rules.
 
 Remote settings are not established by committed workflow files. Check their current values rather than relying on a historical successful run.

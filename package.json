@@ -12,7 +12,8 @@
     "format:staged": "lint-staged",
     "dependencies": "node .github/dependencies.cjs --write && prettier --write DEPENDENCIES.md",
     "dependencies:report": "node .github/dependencies.cjs --offline --output reports/dependencies.md",
-    "test:tooling": "node --test .github/*.test.cjs"
+    "test:tooling": "node --test .github/*.test.cjs",
+    "dockerhub:preview": "node .github/dockerhub.cjs --output reports/dockerhub-overview.md"
   },
   "devDependencies": {
     "husky": "9.1.7",

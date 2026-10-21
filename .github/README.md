@@ -66,13 +66,13 @@ License/notice files, private configuration and generated artifacts are excluded
 3. In that environment, add these variables:
    - `DOCKERHUB_USERNAME`: your Docker Hub login, for example `oliverweinrich`.
    - `DOCKERHUB_REPOSITORY`: `oliverweinrich/tunlivo` (optional; this is the default).
-4. Create a Docker Hub personal access token with **Read & Write** access. Store it in the environment as the secret **DOCKERHUB_TOKEN**. Do not put it in a committed file.
+4. Create a Docker Hub personal access token with **Read & Write** access and store it as **DOCKERHUB_TOKEN**. For Overview updates, create a separate token with **Read, Write & Delete** access and store it as **DOCKERHUB_OVERVIEW_TOKEN** in the same environment. Never put either token in a committed file.
 5. Enable **Private vulnerability reporting** in the repository security settings so the private report link in `SECURITY.md` is usable. Under **Settings → Code security**, enable Dependabot alerts/security updates where available. Version updates are configured by `.github/dependabot.yml`.
 6. Run **Actions → Checks and dependency monitoring → Run workflow** on `main` once to verify runner support and view the initial reports.
 7. After the first successful run, require **Check (amd64)** and **Check (arm64)** in your `main` branch ruleset before merging pull requests. Enable GitHub notifications for failed workflow runs and maintenance issues.
 
 The release workflow uses GitHub's built-in `GITHUB_TOKEN` to create releases and upload files; a separate GitHub personal access token is not needed.
-Checks and Dependabot pull requests do not receive Docker Hub credentials. Only the publication job has repository contents write permission and uses the `dockerhub` environment. The maintenance notification job separately has issue write permission to manage its maintenance issue.
+Checks and Dependabot pull requests do not receive Docker Hub credentials. Only the image publication job has repository contents write permission. Image publication and the overview-only workflow use the protected `dockerhub` environment; the overview-only job needs contents read permission only. The maintenance notification job separately has issue write permission to manage its maintenance issue.
 
 ## Updating the project
 
@@ -132,7 +132,24 @@ Source collection uses the actual installed package inventory, exact Alpine buil
 The tested runtime image is tagged and pushed directly; it is not rebuilt after testing. Versioned tags/releases are not overwritten. `latest` moves only during an explicit release.
 
 If publishing fails partway through, inspect the GitHub release, Actions logs and existing Docker tags before retrying. The preflight deliberately refuses an existing release or versioned image. Some assets may already be public; do not replace them with archives from a different build. Recover using the matching build, or prepare a new version.
-The Docker Hub Overview is not edited by the workflow; update its example tags and source links after a release if needed.
+
+## Docker Hub Overview
+
+The release workflow updates and verifies the Docker Hub Overview **after** publishing and verifying the runtime/source images. The short description, category and other repository settings are preserved. It uses `DOCKERHUB_USERNAME` and a separate secret `DOCKERHUB_OVERVIEW_TOKEN` from the `dockerhub` environment. The Overview API requires a personal access token with **Read, Write & Delete** access, as documented by the [Docker Hub description integration](https://github.com/peter-evans/dockerhub-description#action-inputs). For an organization repository, the account also needs repository Admin permission. Image pushes continue using the narrower `DOCKERHUB_TOKEN`; the Overview token is passed only to the metadata step, which updates no tags and deletes nothing. The release checks that the Overview secret is present before publishing images.
+
+Edit `docs/DOCKERHUB.template.md` for text changes. `.github/dockerhub.cjs` inserts `VERSION`, the configured Docker Hub repository, both actual pairing Compose examples (including their demo-image digest) and GitHub links pinned to the workflow commit. Do not duplicate hardcoded examples, versions or source SHAs in the template.
+
+Preview locally without credentials or network writes:
+
+```sh
+npm run dockerhub:preview
+```
+
+The result is `reports/dockerhub-overview.md`; PR checks and release jobs also upload the preview as an artifact. Actual synchronization uses Docker Hub's authentication API and updates only `full_description`, then reads it back for verification.
+
+For text corrections or a failed metadata sync, merge the fix and run **Actions → Update Docker Hub overview → Run workflow** on `main`. Approve the `dockerhub` environment if requested. This workflow does not build, tag or push an image and requires no new image release. It refuses to update if `VERSION` does not match the image currently published as `latest`; do not advertise a future or older version. If `main` already targets a future version, wait for that release or first prepare an explicitly reviewed correction to the currently published version.
+
+If this final metadata step fails, the images may already be published successfully. Retry **Update Docker Hub overview**, not the entire immutable release pipeline. The overview workflow shares the release concurrency group to avoid conflicting updates. Public live API writes are not part of local tests; unit tests use simulated responses.
 
 ## Local validation and release preparation
 

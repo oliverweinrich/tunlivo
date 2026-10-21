@@ -61,7 +61,7 @@ cp "$root/package.json" "$root/package-lock.json" "$root/.prettierrc.json" \
 mkdir -p "$output/project/docs"
 cp "$root/SECURITY.md" "$root/AGENTS.md" "$root/FEATURES.md" "$root/DEPENDENCIES.md" "$output/project/"
 cp "$root/docs/OPERATIONS.md" "$root/docs/VERSIONING.md" \
-  "$root/docs/RELEASE_CHECKLIST.md" "$output/project/docs/"
+  "$root/docs/RELEASE_CHECKLIST.md" "$root/docs/DOCKERHUB.template.md" "$output/project/docs/"
 mkdir -p "$output/project/.husky" "$output/project/.vscode"
 cp "$root/.husky/pre-commit" "$root/.husky/pre-push" "$output/project/.husky/"
 cp "$root/.vscode/settings.json" "$root/.vscode/extensions.json" "$output/project/.vscode/"

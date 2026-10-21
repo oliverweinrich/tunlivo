@@ -46,6 +46,7 @@ jobs:
           mkdir -p reports
           bash release/test.sh
           npm run test:tooling
+          npm run dockerhub:preview
           sudo modprobe wireguard
       - name: Build pairing tools and run Go checks
         run: |
