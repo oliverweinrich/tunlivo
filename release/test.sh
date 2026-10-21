@@ -9,11 +9,11 @@ mkdir -p "$work/project/release" "$work/project/examples" "$work/bin"
 cp "$root/release/common.sh" "$root/release/set-version.sh" "$root/release/publish.sh" "$work/project/release/"
 printf '1.0.0\n' > "$work/project/VERSION"
 printf 'image: oliverweinrich/tunlivo:1.0.0\n' > "$work/project/README.md"
-printf 'image: oliverweinrich/tunlivo:1.0.0\n' > "$work/project/examples/compose.manual.server.yaml"
+printf 'image: oliverweinrich/tunlivo:1.0.0\n' > "$work/project/examples/compose.manual-server.yaml"
 bash "$work/project/release/set-version.sh" 1.0.1
 [[ "$(cat "$work/project/VERSION")" == 1.0.1 ]]
 grep -q 'tunlivo:1.0.1' "$work/project/README.md"
-grep -q 'tunlivo:1.0.1' "$work/project/examples/compose.manual.server.yaml"
+grep -q 'tunlivo:1.0.1' "$work/project/examples/compose.manual-server.yaml"
 for invalid in v1.0.2 01.0.2 1.2 '1.2.3;touch forbidden'; do
   if bash "$work/project/release/set-version.sh" "$invalid" >/dev/null 2>&1; then
     echo "Accepted invalid version: $invalid" >&2; exit 1

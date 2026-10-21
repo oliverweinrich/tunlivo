@@ -1,10 +1,12 @@
 # Maintenance and release workflow
 
+Operational references: [release checklist](../docs/RELEASE_CHECKLIST.md), [versioning](../docs/VERSIONING.md), [backup and recovery](../docs/OPERATIONS.md), and [security policy](../SECURITY.md).
+
 ## What happens automatically
 
 | Trigger                                                                | Result                                                                                                                                                                                                                                                                                                          |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Every Monday                                                           | Dependabot checks pinned Docker images (including the Trivy scanner), GitHub Actions and Go dependencies and opens update pull requests, including major upgrades.                                                                                                                                              |
+| Every Monday                                                           | Dependabot checks pinned Docker and Compose images (including the Trivy scanner), GitHub Actions, npm and Go dependencies and opens update pull requests, including major upgrades.                                                                                                                             |
 | Pull request or push to `main`                                         | Native AMD64 and ARM64 builds, Go tests and static checks, forwarding/pairing/restart tests, package comparison and vulnerability scans.                                                                                                                                                                        |
 | Monday at 05:17 UTC, or a manual check run on `main`                   | Fresh Alpine packages are built and compared with `oliverweinrich/tunlivo:latest`. A single **Dependency maintenance** issue is created or updated for package changes, failed checks or known high/critical vulnerabilities. It closes when both architecture reports are clean and match the published image. |
 | Push a new `vX.Y.Z` tag, or manually run **Publish release** on `main` | Prepare matching source/license archives, build and test both architectures, scan the actual images, publish GitHub assets, then Docker source/runtime images.                                                                                                                                                  |
@@ -18,6 +20,20 @@ The HTTP demo images in `examples/` are examples, not bundled runtime dependenci
 The scanner image is pinned in `.github/scanner/Dockerfile` and updated by Dependabot; its vulnerability database is refreshed on each scan.
 The scan fails for known **HIGH** and **CRITICAL** findings, including findings without a fix. Lower-severity findings do not block a release. A successful scan is not a guarantee that no vulnerabilities exist.
 If a major Alpine or Go update breaks source collection or compatibility, the checks must be fixed before releasing.
+
+## Dependency inventory
+
+[DEPENDENCIES.md](../DEPENDENCIES.md) lists configured pins, their last declaration change in Git, Dependabot coverage and the exact packages from the latest published runtime inventory. It is a generated informational snapshot, not a second lockfile or an upstream freshness guarantee.
+
+```sh
+npm run dependencies         # Refresh the committed snapshot; needs curl + GitHub access
+npm run dependencies:report  # Offline manifest report in reports/dependencies.md
+npm run test:tooling
+```
+
+CI generates the offline report for each native check and uploads it with maintenance reports; it does not fail a dependency PR because the committed snapshot has not been regenerated. Refresh the committed document after dependency changes or during release review. Source helper packages are rebuilt and scanned in CI, with their separate inventory in `source-helper-packages.tsv`. The release workflow scans the actual helper again before proceeding.
+
+Dockerfile pins use the `docker` updater; Compose examples use `docker-compose`. The examples' own `oliverweinrich/tunlivo` references are excluded because `release/set-version.sh` controls them. Alpine package versions and the Node major are not independently updated by Dependabot; see the inventory's coverage boundaries.
 
 ## Formatting and Git hooks
 
@@ -50,13 +66,13 @@ License/notice files, private configuration and generated artifacts are excluded
 3. In that environment, add these variables:
    - `DOCKERHUB_USERNAME`: your Docker Hub login, for example `oliverweinrich`.
    - `DOCKERHUB_REPOSITORY`: `oliverweinrich/tunlivo` (optional; this is the default).
-4. Create a Docker Hub personal access token with **Read & Write** access. Store it in the environment as the secret **DOCKERHUB_TOKEN**. Do not put it in a committed file.
-5. Under **Settings → Code security**, enable Dependabot alerts/security updates where available. Version updates are configured by `.github/dependabot.yml`.
+4. Create a Docker Hub personal access token with **Read & Write** access and store it as **DOCKERHUB_TOKEN**. For Overview updates, create a separate token with **Read, Write & Delete** access and store it as **DOCKERHUB_OVERVIEW_TOKEN** in the same environment. Never put either token in a committed file.
+5. Enable **Private vulnerability reporting** in the repository security settings so the private report link in `SECURITY.md` is usable. Under **Settings → Code security**, enable Dependabot alerts/security updates where available. Version updates are configured by `.github/dependabot.yml`.
 6. Run **Actions → Checks and dependency monitoring → Run workflow** on `main` once to verify runner support and view the initial reports.
 7. After the first successful run, require **Check (amd64)** and **Check (arm64)** in your `main` branch ruleset before merging pull requests. Enable GitHub notifications for failed workflow runs and maintenance issues.
 
 The release workflow uses GitHub's built-in `GITHUB_TOKEN` to create releases and upload files; a separate GitHub personal access token is not needed.
-Checks and Dependabot pull requests do not receive Docker Hub credentials. Only the release job has write permissions and uses the `dockerhub` environment.
+Checks and Dependabot pull requests do not receive Docker Hub credentials. Only the image publication job has repository contents write permission. Image publication and the overview-only workflow use the protected `dockerhub` environment; the overview-only job needs contents read permission only. The maintenance notification job separately has issue write permission to manage its maintenance issue.
 
 ## Updating the project
 
@@ -65,20 +81,21 @@ Checks and Dependabot pull requests do not receive Docker Hub credentials. Only 
 3. Make and test any project changes on a branch, then merge into `main`.
 4. Choose a new, increasing stable version. Use a patch for compatible fixes/package refreshes, a minor for compatible new features, and a major for breaking changes.
 
-`VERSION` is the release version source of truth. This command updates it and the image references in the README and examples:
+`VERSION` is the release version source of truth. Replace `X.Y.Z` below with a new, unused version greater than the current one. The helper updates `VERSION` and image references in the README and examples:
 
 ```sh
-bash release/set-version.sh 1.0.1
+next_version=X.Y.Z
+bash release/set-version.sh "$next_version"
 git diff
 ```
 
-For 1.0.1, commit the version changes on a branch and open a pull request:
+Commit the version changes on a branch and open a pull request:
 
 ```sh
-git switch -c chore/release-1.0.1
+git switch -c "chore/release-$next_version"
 git add VERSION README.md examples/
-git commit -m "chore: prepare release 1.0.1"
-git push -u origin chore/release-1.0.1
+git commit -m "chore(release): prepare version $next_version"
+git push -u origin "chore/release-$next_version"
 ```
 
 Review the pull request, wait for **Check (amd64)** and **Check (arm64)**, then merge into `main`.
@@ -88,8 +105,9 @@ After merging, update local `main` and tag the merged commit:
 ```sh
 git switch main
 git pull --ff-only origin main
-git tag -a v1.0.1 -m "Tunlivo 1.0.1"
-git push origin v1.0.1
+release_version="$(cat VERSION)"
+git tag -a "v$release_version" -m "Tunlivo $release_version"
+git push origin "v$release_version"
 ```
 
 If the `dockerhub` environment requires your approval, open the **Publish release** run and choose **Review deployments → Approve and deploy**.
@@ -97,7 +115,7 @@ This approval gates publication. Source preparation, scans and native AMD64/ARM6
 
 The preparation job exports the multi-platform candidate image once. Both native test runners and the publication job load that same checksummed artifact; the runtime image is not rebuilt between testing and publication. QEMU remains available for source preparation and cross-platform file checks, but the WireGuard integration tests run on matching hardware.
 
-Use the next unused version, not 1.0.1 repeatedly. The tag must exactly match `VERSION` and its commit must be part of `main`.
+Use a new unused version for each release. The tag must exactly match `VERSION` and its commit must be part of `main`.
 Alternatively, after committing a new version to `main`, run **Publish release** manually on `main`; the workflow creates the tag through the GitHub release.
 For the first automated release, finish configuring and testing the workflows before pushing a release tag.
 
@@ -114,7 +132,24 @@ Source collection uses the actual installed package inventory, exact Alpine buil
 The tested runtime image is tagged and pushed directly; it is not rebuilt after testing. Versioned tags/releases are not overwritten. `latest` moves only during an explicit release.
 
 If publishing fails partway through, inspect the GitHub release, Actions logs and existing Docker tags before retrying. The preflight deliberately refuses an existing release or versioned image. Some assets may already be public; do not replace them with archives from a different build. Recover using the matching build, or prepare a new version.
-The Docker Hub Overview is not edited by the workflow; update its example tags and source links after a release if needed.
+
+## Docker Hub Overview
+
+The release workflow updates and verifies the Docker Hub Overview **after** publishing and verifying the runtime/source images. The short description, category and other repository settings are preserved. It uses `DOCKERHUB_USERNAME` and a separate secret `DOCKERHUB_OVERVIEW_TOKEN` from the `dockerhub` environment. The Overview API requires a personal access token with **Read, Write & Delete** access, as documented by the [Docker Hub description integration](https://github.com/peter-evans/dockerhub-description#action-inputs). For an organization repository, the account also needs repository Admin permission. Image pushes continue using the narrower `DOCKERHUB_TOKEN`; the Overview token is passed only to the metadata step, which updates no tags and deletes nothing. The release checks that the Overview secret is present before publishing images.
+
+Edit `docs/DOCKERHUB.template.md` for text changes. `.github/dockerhub.cjs` inserts `VERSION`, the configured Docker Hub repository, both actual pairing Compose examples (including their demo-image digest) and GitHub links pinned to the workflow commit. Do not duplicate hardcoded examples, versions or source SHAs in the template.
+
+Preview locally without credentials or network writes:
+
+```sh
+npm run dockerhub:preview
+```
+
+The result is `reports/dockerhub-overview.md`; PR checks and release jobs also upload the preview as an artifact. Actual synchronization uses Docker Hub's authentication API and updates only `full_description`, then reads it back for verification.
+
+For text corrections or a failed metadata sync, merge the fix and run **Actions → Update Docker Hub overview → Run workflow** on `main`. Approve the `dockerhub` environment if requested. This workflow does not build, tag or push an image and requires no new image release. It refuses to update if `VERSION` does not match the image currently published as `latest`; do not advertise a future or older version. If `main` already targets a future version, wait for that release or first prepare an explicitly reviewed correction to the currently published version.
+
+If this final metadata step fails, the images may already be published successfully. Retry **Update Docker Hub overview**, not the entire immutable release pipeline. The overview workflow shares the release concurrency group to avoid conflicting updates. Public live API writes are not part of local tests; unit tests use simulated responses.
 
 ## Local validation and release preparation
 

@@ -4,7 +4,6 @@ updates:
     directories:
       - /image
       - /.github/scanner
-      - /examples
     schedule:
       interval: weekly
       day: monday
@@ -13,6 +12,19 @@ updates:
     open-pull-requests-limit: 5
     groups:
       docker-images:
+        patterns: ['*']
+  - package-ecosystem: docker-compose
+    directory: /examples
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Berlin
+    ignore:
+      # The release helper owns this project's version references.
+      - dependency-name: oliverweinrich/tunlivo
+    groups:
+      example-images:
         patterns: ['*']
   - package-ecosystem: github-actions
     directory: /

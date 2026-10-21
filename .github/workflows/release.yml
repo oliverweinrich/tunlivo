@@ -46,6 +46,10 @@ jobs:
           driver: docker
       - name: Prepare matching sources and licenses with fresh packages
         run: bash release/prepare.sh
+      - name: Scan source collection dependencies
+        run: |
+          TUNLIVO_SCAN_REPORT="$PWD/release-output/$(cat VERSION)/trivy-source-helper.json" \
+            bash .github/scan.sh tunlivo-source-helper:local
       - name: Build the final multi-platform image
         run: |
           docker buildx build --platform linux/amd64,linux/arm64 --load             --build-arg VERSION="$(cat VERSION)" -t "tunlivo:$(cat VERSION)" image
@@ -141,6 +145,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
       - uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0
         with:
           daemon-config: |
@@ -167,6 +174,11 @@ jobs:
           docker image load -i candidate/image.tar
           tar -xzf candidate/release-state.tar.gz
           bash release/check.sh --local
+      - name: Validate overview credentials before image publication
+        env:
+          DOCKERHUB_OVERVIEW_TOKEN: ${{ secrets.DOCKERHUB_OVERVIEW_TOKEN }}
+        run: |
+          : "${DOCKERHUB_OVERVIEW_TOKEN:?Set DOCKERHUB_OVERVIEW_TOKEN with read/write/delete access in the dockerhub environment}"
       - name: Log in to Docker Hub
         env:
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
@@ -179,6 +191,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash release/publish.sh
+      - name: Update and verify Docker Hub overview
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_OVERVIEW_TOKEN }}
+        run: node .github/dockerhub.cjs --output reports/dockerhub-overview.md --publish
+      - name: Save generated Docker Hub overview
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dockerhub-overview
+          path: reports/dockerhub-overview.md
+          if-no-files-found: warn
+          retention-days: 7
       - name: Log out of Docker Hub
         if: always()
         run: docker logout
