@@ -54,6 +54,8 @@ jobs:
         id: build
         run: |
           docker buildx build --pull --no-cache-filter runtime --load             --build-arg VERSION="$(cat VERSION)" -t tunlivo:ci image
+      - name: Test release output permissions
+        run: bash release/test-permissions.sh tunlivo:ci
       - name: Compare installed packages with the published image
         run: |
           docker run --rm --network none --entrypoint cat tunlivo:ci             /usr/share/licenses/tunlivo/packages.tsv > reports/packages-candidate.tsv

@@ -3,6 +3,20 @@
 # SPDX-License-Identifier: Apache-2.0
 set -euo pipefail
 umask 022
+# Bind-mounted files must remain writable by the host release process on Linux.
+# Return ownership even when collection fails so a retry can clean up its output.
+output_uid="${TUNLIVO_OUTPUT_UID:?Set the host output UID}"
+output_gid="${TUNLIVO_OUTPUT_GID:?Set the host output GID}"
+[[ "$output_uid" =~ ^[0-9]+$ && "$output_gid" =~ ^[0-9]+$ ]] || {
+  echo 'Output UID and GID must be numeric.' >&2; exit 1;
+}
+restore_output_owner() {
+  result=$?
+  trap - EXIT
+  chown -R "$output_uid:$output_gid" /output /cache || result=1
+  exit "$result"
+}
+trap restore_output_owner EXIT
 export CARCH="$(apk --print-arch)"
 alpine_branch="$(cut -d. -f1,2 /etc/alpine-release)"
 export DISTFILES_MIRROR="https://distfiles.alpinelinux.org/distfiles/v$alpine_branch"

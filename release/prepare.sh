@@ -34,7 +34,9 @@ alpine_image="$(awk '$1=="FROM" && $3=="AS" && $4=="runtime" {print $2}' "$root/
 }
 docker build --build-arg "ALPINE_IMAGE=$alpine_image" -t tunlivo-source-helper:local \
   -f "$root/release/Source.Dockerfile" "$root/release"
+bash "$root/release/test-permissions.sh" tunlivo-source-helper:local
 docker run --rm --security-opt no-new-privileges:true \
+  -e "TUNLIVO_OUTPUT_UID=$(id -u)" -e "TUNLIVO_OUTPUT_GID=$(id -g)" \
   -v "$output:/output" -v "$cache:/cache" tunlivo-source-helper:local
 # Collected third-party copyrights/licenses also accompany the final runtime.
 mkdir -p "$root/image/legal/alpine"
