@@ -19,7 +19,7 @@
     "test:compatibility": "node .github/test-compatibility.mts"
   },
   "devDependencies": {
-    "@types/node": "24.19.2",
+    "@types/node": "26.6.5",
     "husky": "9.1.7",
     "lint-staged": "17.6.0",
     "prettier": "3.9.10",
