@@ -7,21 +7,26 @@
   },
   "scripts": {
     "prepare": "husky",
+    "typecheck": "tsc --noEmit",
+    "test:runtime": "node --test image/runtime/*.test.mts",
     "format": "prettier --write . --ignore-unknown",
     "format:check": "prettier --check . --ignore-unknown",
     "format:staged": "lint-staged",
-    "dependencies": "node .github/dependencies.cjs --write && prettier --write DEPENDENCIES.md",
-    "dependencies:report": "node .github/dependencies.cjs --offline --output reports/dependencies.md",
-    "test:tooling": "node --test .github/*.test.cjs",
-    "dockerhub:preview": "node .github/dockerhub.cjs --output reports/dockerhub-overview.md"
+    "dependencies": "node .github/dependencies.mts --write && prettier --write DEPENDENCIES.md",
+    "dependencies:report": "node .github/dependencies.mts --offline --output reports/dependencies.md",
+    "test:tooling": "node --test .github/*.test.mts",
+    "dockerhub:preview": "node .github/dockerhub.mts --output reports/dockerhub-overview.md",
+    "test:compatibility": "node .github/test-compatibility.mts"
   },
   "devDependencies": {
+    "@types/node": "24.19.2",
     "husky": "9.1.7",
     "lint-staged": "17.6.0",
     "prettier": "3.9.10",
+    "typescript": "7.0.2",
     "yaml": "2.9.1"
   },
   "lint-staged": {
-    "*.{js,cjs,mjs,jsx,ts,tsx,json,jsonc,yml,yaml,md,mdx,css,scss,html}": "prettier --write --ignore-unknown"
+    "*.{js,cjs,mjs,jsx,ts,tsx,mts,cts,json,jsonc,yml,yaml,md,mdx,css,scss,html}": "prettier --write --ignore-unknown"
   }
 }

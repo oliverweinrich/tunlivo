@@ -12,7 +12,6 @@
 *.p12
 *.pfx
 /data/
-/image/pairing/pairing
 /reports/
 /node_modules/
 /.husky/_/

@@ -1,14 +1,15 @@
 // Copyright 2026 Oliver Weinrich
 // SPDX-License-Identifier: Apache-2.0
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-const {
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import fs from 'node:fs';
+import {
   collect,
   coverage,
   runtimeInventory,
   render,
-} = require('./dependencies.cjs');
+} from './dependencies.mts';
 
 test('coverage distinguishes Compose, missing updaters and release-managed images', () => {
   const config = {
@@ -50,7 +51,7 @@ test('runtime inventory preserves architecture-specific version differences', ()
 });
 
 test('every declared image, action and npm dependency has an update policy', () => {
-  const rows = collect(path.resolve(__dirname, '..'));
+  const rows = collect(path.resolve(import.meta.dirname, '..'));
   assert(rows.some((r) => r.name === 'alpine' && r.coverage.startsWith('Yes')));
   assert(
     rows.some(
@@ -78,9 +79,9 @@ test('example names are discoverable by the official Compose updater', () => {
   // Mirrors dependabot-core docker_compose/file_fetcher.rb; this updater only
   // accepts a single dot suffix, e.g. compose.manual-client.yaml.
   const pattern = /^(docker-)?compose(-[\w]+)?(\.[\w-]+)?\.ya?ml$/i;
-  const fs = require('node:fs');
+
   for (const name of fs
-    .readdirSync(path.resolve(__dirname, '../examples'))
+    .readdirSync(path.resolve(import.meta.dirname, '../examples'))
     .filter((f) => f.endsWith('.yaml'))) {
     assert.match(name, pattern);
   }

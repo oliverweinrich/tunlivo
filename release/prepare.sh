@@ -28,6 +28,7 @@ docker buildx build "${build_options[@]}" --platform linux/amd64,linux/arm64 --t
   tail -n +2 "$output/seed/linux_amd64/packages.tsv"
   tail -n +2 "$output/seed/linux_arm64/packages.tsv"
 } > "$output/packages.tsv"
+node "$root/.github/prune-notices.mts" "$output"
 alpine_image="$(awk '$1=="FROM" && $3=="AS" && $4=="runtime" {print $2}' "$root/image/Dockerfile")"
 [[ "$alpine_image" =~ ^alpine:[0-9]+\.[0-9]+([.][0-9]+)?@sha256:[0-9a-f]{64}$ ]] || {
   echo 'Cannot determine pinned Alpine runtime base.' >&2; exit 1;
@@ -41,6 +42,8 @@ docker run --rm --security-opt no-new-privileges:true \
   -e "TUNLIVO_OUTPUT_UID=$(id -u)" -e "TUNLIVO_OUTPUT_GID=$(id -g)" \
   -v "$output:/output" -v "$cache:/cache" tunlivo-source-helper:local
 # Collected third-party copyrights/licenses also accompany the final runtime.
+# Replace generated notices so removed runtime dependencies do not survive a migration.
+rm -rf "$root/image/legal/alpine"
 mkdir -p "$root/image/legal/alpine"
 cp -R "$output/licenses/alpine/." "$root/image/legal/alpine/"
 cat > "$root/image/legal/release.json" <<JSON
@@ -48,7 +51,7 @@ cat > "$root/image/legal/release.json" <<JSON
 JSON
 # Recreate the generated staging directory so removed/private files cannot survive a previous run.
 rm -rf "$output/project"
-mkdir -p "$output/project/examples" "$output/go" "$output/metadata"
+mkdir -p "$output/project/examples" "$output/metadata"
 for architecture in amd64 arm64; do
   cp "$output/seed/linux_$architecture/runtime-files.sha256" "$output/metadata/runtime-files-$architecture.sha256"
   cp "$output/seed/linux_$architecture/packages.tsv" "$output/metadata/packages-$architecture.tsv"
@@ -56,35 +59,32 @@ done
 # Explicit allowlist: no local Compose instances, .env, keys, volumes or caches.
 cp "$root/LICENSE" "$root/NOTICE" "$root/README.md" "$root/THIRD_PARTY_NOTICES.md" \
   "$root/.gitignore" "$root/VERSION" "$root/test-integration.sh" "$output/project/"
-cp "$root/package.json" "$root/package-lock.json" "$root/.prettierrc.json" \
+cp "$root/tsconfig.json" "$root/package.json" "$root/package-lock.json" "$root/.prettierrc.json" \
   "$root/.prettierignore" "$root/.npmrc" "$root/.node-version" "$output/project/"
 mkdir -p "$output/project/docs"
 cp "$root/SECURITY.md" "$root/AGENTS.md" "$root/FEATURES.md" "$root/DEPENDENCIES.md" "$output/project/"
 cp "$root/docs/OPERATIONS.md" "$root/docs/VERSIONING.md" \
-  "$root/docs/RELEASE_CHECKLIST.md" "$root/docs/DOCKERHUB.template.md" "$output/project/docs/"
+  "$root/docs/RELEASE_CHECKLIST.md" "$root/docs/DOCKERHUB.template.md" "$root/docs/TYPESCRIPT_MIGRATION.md" "$output/project/docs/"
 mkdir -p "$output/project/.husky" "$output/project/.vscode"
 cp "$root/.husky/pre-commit" "$root/.husky/pre-push" "$output/project/.husky/"
 cp "$root/.vscode/settings.json" "$root/.vscode/extensions.json" "$output/project/.vscode/"
 mkdir -p "$output/project/.github/workflows"
-cp "$root/.github/dependabot.yml" "$root/.github/README.md" "$root/.github/"*.cjs "$output/project/.github/"
+cp "$root/.github/dependabot.yml" "$root/.github/compatibility-baseline.json" "$root/.github/README.md" "$root/.github/"*.mts "$output/project/.github/"
 cp "$root/.github/workflows/"*.yml "$output/project/.github/workflows/"
 cp "$root/.github/scan.sh" "$output/project/.github/"
 mkdir -p "$output/project/.github/scanner"
 cp "$root/.github/scanner/Dockerfile" "$output/project/.github/scanner/"
 cp "$root/examples/CONFIGURATION.md" "$root"/examples/compose.*.yaml "$output/project/examples/"
-mkdir -p "$output/project/image/pairing" "$output/project/release"
-cp "$root/image/Dockerfile" "$root/image/.dockerignore" "$root/image/inventory.awk" \
+mkdir -p "$output/project/image/runtime" "$output/project/release"
+cp "$root/image/Dockerfile" "$root/image/.dockerignore" "$root/image/gateway-pair" \
   "$root/image/entrypoint.sh" "$root/image/configure.sh" "$root/image/healthcheck.sh" \
   "$output/project/image/"
-cp "$root/image/pairing/"*.go "$root/image/pairing/go.mod" "$output/project/image/pairing/"
+cp "$root/image/runtime/"*.mts "$output/project/image/runtime/"
 cp -R "$root/image/legal" "$output/project/image/"
 cp "$root/release/"*Dockerfile "$root/release/"*.sh "$output/project/release/"
-cp -R "$output/seed/linux_amd64/go/." "$output/go/"
-cp -R "$output/seed/linux_amd64/licenses/go" "$output/licenses/"
-# Inventory, source recipes/patches, upstream archives, own code, Go sources and licenses.
+# Inventory, source recipes/patches, upstream archives, own code and licenses.
 tar -czf "$output/tunlivo-$version-sources.tar.gz" -C "$output" \
-  project alpine go licenses metadata packages.tsv
-cp -R "$output/seed/linux_amd64/licenses/." "$output/licenses/"
+  project alpine licenses metadata packages.tsv
 cp -R "$root/image/legal/." "$output/licenses/"
 tar -czf "$output/tunlivo-$version-licenses.tar.gz" -C "$output" licenses
 (

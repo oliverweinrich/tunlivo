@@ -8,8 +8,8 @@ programs; Apache-2.0 does not override their respective licenses.
 
 The runtime image contains an Alpine Linux userland, the original WireGuard
 command-line tools, nginx and its stream module, Bash, iproute2, OpenBSD
-netcat, supporting libraries, and a statically compiled Go program. The Linux
-kernel and its WireGuard implementation are supplied by the host, not by
+netcat, Node.js, OpenSSL, flock and supporting libraries. The gateway
+application is written in TypeScript and executed by Node.js. The Linux kernel and its WireGuard implementation are supplied by the host, not by
 this image. No official WireGuard logo is used.
 
 The exact package names, versions, Alpine source origins, license expressions,
@@ -23,7 +23,9 @@ Subpackages can share the same source origin. Examples include:
 | Bash and Readline               | GPL-3.0-or-later; https://www.gnu.org/                                      |
 | BusyBox                         | GPL-2.0-only; https://busybox.net/                                          |
 | iproute2                        | GPL-2.0-or-later; https://www.kernel.org/pub/linux/utils/net/iproute2/      |
-| Go runtime and standard library | BSD-style license and third-party notices supplied with Go; https://go.dev/ |
+| Node.js | MIT and bundled third-party notices; https://nodejs.org/ |
+| OpenSSL | Apache-2.0; https://www.openssl.org/ |
+| flock (util-linux) | Package-specific license; see the version-specific Alpine inventory |
 | Remaining Alpine packages       | Individual licenses; see the version-specific inventory and source archive  |
 
 ## License texts and source distribution
@@ -33,7 +35,7 @@ recorded build commits, local patches, upstream source archives and license
 files. Attribution and license terms embedded in source-file headers are
 also preserved verbatim in per-package `source-notices.tar.gz` bundles.
 Archives are verified against the checksums in the package recipes.
-The Go source tree and its licenses are exported from the pinned Go builder.
+Node.js and its bundled dependency sources/notices are collected from the exact Alpine Node.js package recipe alongside the other runtime packages. No runtime npm modules are installed.
 Tunlivo's source and build scripts are included separately in the archive.
 
 Before distributing an image, publish its matching complete source archive,

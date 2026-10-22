@@ -1,16 +1,31 @@
+import { fileURLToPath } from 'node:url';
 // Copyright 2026 Oliver Weinrich
 // SPDX-License-Identifier: Apache-2.0
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
-function repository(value) {
+interface RenderOptions {
+  repository?: string;
+  githubRepository?: string;
+  sourceRef?: string;
+}
+export interface Candidate {
+  overview: string;
+  version: string;
+  repository: string;
+}
+export type Fetcher = (
+  url: string,
+  options: RequestInit,
+) => Promise<Pick<Response, 'ok' | 'status' | 'json'>>;
+function repository(value: string) {
   if (!/^[a-z0-9][a-z0-9_-]*\/[a-z0-9][a-z0-9_.-]*$/.test(value))
     throw new Error('Invalid Docker Hub repository');
   return value;
 }
 
-function render(root, options = {}) {
+function render(root: string, options: RenderOptions = {}): Candidate {
   const version = fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim();
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version))
     throw new Error('Invalid VERSION');
@@ -26,7 +41,7 @@ function render(root, options = {}) {
     }).trim();
   if (!/^[a-f0-9]{40}$/.test(ref))
     throw new Error('Source reference must be a full commit SHA');
-  const compose = (role) => {
+  const compose = (role: string) => {
     const text = fs
       .readFileSync(
         path.join(root, `examples/compose.pairing-${role}.yaml`),
@@ -37,7 +52,7 @@ function render(root, options = {}) {
       throw new Error(`Pairing ${role} example does not match VERSION`);
     return `\`\`\`yaml\n${text.replaceAll(`image: oliverweinrich/tunlivo:${version}`, `image: ${repo}:${version}`)}\n\`\`\``;
   };
-  const values = {
+  const values: Record<string, string> = {
     VERSION: version,
     REPOSITORY: repo,
     PROJECT_URL: `https://github.com/${github}`,
@@ -57,13 +72,17 @@ function render(root, options = {}) {
   return { overview, version, repository: repo };
 }
 
-async function publish(candidate, env, fetchImpl = fetch) {
+async function publish(
+  candidate: Candidate,
+  env: NodeJS.ProcessEnv,
+  fetchImpl: Fetcher = fetch,
+) {
   repository(candidate.repository);
   if (!env.DOCKERHUB_USERNAME || !env.DOCKERHUB_TOKEN)
     throw new Error(
       'Set DOCKERHUB_USERNAME and DOCKERHUB_TOKEN with overview read/write/delete access',
     );
-  async function request(endpoint, options = {}) {
+  async function request(endpoint: string, options: RequestInit = {}) {
     let response;
     try {
       response = await fetchImpl(`https://hub.docker.com/v2/${endpoint}`, {
@@ -82,10 +101,13 @@ async function publish(candidate, env, fetchImpl = fetch) {
       );
     return response;
   }
-  async function json(endpoint, options) {
+  async function json(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<Record<string, string | undefined>> {
     const response = await request(endpoint, options);
     try {
-      return await response.json();
+      return (await response.json()) as Record<string, string | undefined>;
     } catch {
       throw new Error(
         'Docker Hub returned invalid JSON; retry the overview workflow',
@@ -134,11 +156,11 @@ async function main() {
   const allowed = new Set(['--publish', '--output']);
   for (let i = 0; i < args.length; i++) {
     if (!allowed.has(args[i]))
-      throw new Error('Usage: dockerhub.cjs [--output FILE] [--publish]');
+      throw new Error('Usage: dockerhub.mts [--output FILE] [--publish]');
     if (args[i] === '--output' && (!args[++i] || args[i].startsWith('--')))
       throw new Error('--output requires a path');
   }
-  const root = path.resolve(__dirname, '..');
+  const root = path.resolve(import.meta.dirname, '..');
   const candidate = render(root, {
     repository: process.env.TUNLIVO_REPOSITORY,
     githubRepository: process.env.GITHUB_REPOSITORY,
@@ -158,9 +180,14 @@ async function main() {
     );
   }
 }
-if (require.main === module)
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+)
   main().catch((error) => {
-    console.error(error.message);
+    console.error(
+      error instanceof Error ? error.message : 'Overview update failed',
+    );
     process.exitCode = 1;
   });
-module.exports = { render, publish };
+export { render, publish };

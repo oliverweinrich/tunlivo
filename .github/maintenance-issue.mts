@@ -1,9 +1,45 @@
 // Copyright 2026 Oliver Weinrich
 // SPDX-License-Identifier: Apache-2.0
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
-module.exports = async ({ github, context, result }) => {
+export interface Issue {
+  title: string;
+  number: number;
+  pull_request?: unknown;
+}
+export interface IssueChange {
+  owner: string;
+  repo: string;
+  title?: string;
+  body?: string;
+  state?: string;
+  issue_number?: number;
+}
+export interface GitHubClient {
+  paginate(method: unknown, options: Record<string, unknown>): Promise<Issue[]>;
+  rest: {
+    issues: {
+      listForRepo: unknown;
+      create(value: IssueChange): Promise<unknown>;
+      update(value: IssueChange): Promise<unknown>;
+    };
+  };
+}
+export interface Context {
+  repo: { owner: string; repo: string };
+  serverUrl: string;
+  runId: number;
+}
+export default async ({
+  github,
+  context,
+  result,
+}: {
+  github: GitHubClient;
+  context: Context;
+  result: string | undefined;
+}) => {
   const differences = [];
   const vulnerabilities = [];
   const errors = [];

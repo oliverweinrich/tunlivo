@@ -6,20 +6,20 @@ Operational references: [release checklist](../docs/RELEASE_CHECKLIST.md), [vers
 
 | Trigger                                                                | Result                                                                                                                                                                                                                                                                                                          |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Every Monday                                                           | Dependabot checks pinned Docker and Compose images (including the Trivy scanner), GitHub Actions, npm and Go dependencies and opens update pull requests, including major upgrades.                                                                                                                             |
-| Pull request or push to `main`                                         | Native AMD64 and ARM64 builds, Go tests and static checks, forwarding/pairing/restart tests, package comparison and vulnerability scans.                                                                                                                                                                        |
+| Every Monday                                                           | Dependabot checks pinned Docker and Compose images (including the Trivy scanner), GitHub Actions, npm dependencies and opens update pull requests, including major upgrades.                                                                                                                                    |
+| Pull request or push to `main`                                         | Native AMD64 and ARM64 builds, strict TypeScript checks and runtime security tests, forwarding/pairing/restart tests, package comparison and vulnerability scans.                                                                                                                                               |
 | Monday at 05:17 UTC, or a manual check run on `main`                   | Fresh Alpine packages are built and compared with `oliverweinrich/tunlivo:latest`. A single **Dependency maintenance** issue is created or updated for package changes, failed checks or known high/critical vulnerabilities. It closes when both architecture reports are clean and match the published image. |
 | Push a new `vX.Y.Z` tag, or manually run **Publish release** on `main` | Prepare matching source/license archives, build and test both architectures, scan the actual images, publish GitHub assets, then Docker source/runtime images.                                                                                                                                                  |
 
 Updates are not merged automatically. A merged dependency update does not publish an image.
-The Go module currently uses only the standard library; Go toolchain updates come through the pinned builder image.
+The runtime is native TypeScript on the Alpine Node.js package, without runtime npm modules. Development tools use TypeScript, `@types/node` and the existing pinned npm tools. Node runtime updates come through fresh Alpine builds/scans; the `.node-version` development major remains a manual review.
 Alpine packages installed by `apk add` need the scheduled fresh build because Dependabot cannot update those unpinned package versions.
 Fresh builds run `apk upgrade` before installing the application packages, so updates to existing base packages such as BusyBox and musl are included as well.
 The HTTP demo images in `examples/` are examples, not bundled runtime dependencies.
 
 The scanner image is pinned in `.github/scanner/Dockerfile` and updated by Dependabot; its vulnerability database is refreshed on each scan.
 The scan fails for known **HIGH** and **CRITICAL** findings, including findings without a fix. Lower-severity findings do not block a release. A successful scan is not a guarantee that no vulnerabilities exist.
-If a major Alpine or Go update breaks source collection or compatibility, the checks must be fixed before releasing.
+If a major Alpine or Node.js update breaks source collection or compatibility, the checks must be fixed before releasing.
 
 ## Dependency inventory
 
@@ -45,7 +45,7 @@ npm ci
 
 This installs the pinned development tools and activates the Husky Git hooks:
 
-- **Before committing:** lint-staged formats staged Markdown, JSON, YAML, JavaScript and other supported Prettier files and stages the formatting changes. Partially staged changes are preserved.
+- **Before committing:** lint-staged formats staged Markdown, JSON, YAML, TypeScript and other supported Prettier files and stages the formatting changes. Partially staged changes are preserved.
 - **Before pushing:** Prettier checks the repository. If formatting is missing, run `npm run format`, review and commit the changes, then push again.
 - **In CI and before publishing:** the same formatting check and an npm audit run automatically.
 
@@ -56,7 +56,7 @@ npm run format
 npm run format:check
 ```
 
-`.prettierrc.json` contains the shared formatting rules. VS Code settings enable format-on-save for supported languages with the recommended Prettier extension. Go continues to use `gofmt` in CI; Bash, Dockerfiles and AWK are not formatted by this Prettier configuration.
+`.prettierrc.json` contains the shared formatting rules. VS Code settings enable format-on-save for supported languages with the recommended Prettier extension. TypeScript is checked separately with `npm run typecheck`; Bash and Dockerfiles are not formatted by this Prettier configuration.
 License/notice files, private configuration and generated artifacts are excluded. The formatter tools and `node_modules` are not included in the runtime image. Dependabot also monitors the pinned npm tooling dependencies.
 
 ## One-time GitHub setup
@@ -128,7 +128,7 @@ For version `X.Y.Z`, the workflow publishes:
 - `oliverweinrich/tunlivo:X.Y.Z`: tested AMD64/ARM64 runtime image.
 - `oliverweinrich/tunlivo:latest`: the same runtime image.
 
-Source collection uses the actual installed package inventory, exact Alpine build commits, verified upstream archives, and the pinned Go builder sources. The collector uses the same Alpine base as the runtime. Public source downloads and licenses in both runtime architectures are checked before pushing runtime tags.
+Source collection uses the actual installed package inventory, exact Alpine build commits, verified upstream archives, including the exact Node.js sources/notices from its Alpine recipe. The collector uses the same Alpine base as the runtime. Public source downloads and licenses in both runtime architectures are checked before pushing runtime tags.
 The tested runtime image is tagged and pushed directly; it is not rebuilt after testing. Versioned tags/releases are not overwritten. `latest` moves only during an explicit release.
 
 If publishing fails partway through, inspect the GitHub release, Actions logs and existing Docker tags before retrying. The preflight deliberately refuses an existing release or versioned image. Some assets may already be public; do not replace them with archives from a different build. Recover using the matching build, or prepare a new version.
@@ -137,7 +137,7 @@ If publishing fails partway through, inspect the GitHub release, Actions logs an
 
 The release workflow updates and verifies the Docker Hub Overview **after** publishing and verifying the runtime/source images. The short description, category and other repository settings are preserved. It uses `DOCKERHUB_USERNAME` and a separate secret `DOCKERHUB_OVERVIEW_TOKEN` from the `dockerhub` environment. The Overview API requires a personal access token with **Read, Write & Delete** access, as documented by the [Docker Hub description integration](https://github.com/peter-evans/dockerhub-description#action-inputs). For an organization repository, the account also needs repository Admin permission. Image pushes continue using the narrower `DOCKERHUB_TOKEN`; the Overview token is passed only to the metadata step, which updates no tags and deletes nothing. The release checks that the Overview secret is present before publishing images.
 
-Edit `docs/DOCKERHUB.template.md` for text changes. `.github/dockerhub.cjs` inserts `VERSION`, the configured Docker Hub repository, both actual pairing Compose examples (including their demo-image digest) and GitHub links pinned to the workflow commit. Do not duplicate hardcoded examples, versions or source SHAs in the template.
+Edit `docs/DOCKERHUB.template.md` for text changes. `.github/dockerhub.mts` inserts `VERSION`, the configured Docker Hub repository, both actual pairing Compose examples (including their demo-image digest) and GitHub links pinned to the workflow commit. Do not duplicate hardcoded examples, versions or source SHAs in the template.
 
 Preview locally without credentials or network writes:
 
@@ -159,7 +159,7 @@ docker build --build-arg VERSION="$version" -t "tunlivo:$version" image
 bash test-integration.sh
 ```
 
-Preparing release archives requires a multi-platform Docker builder, AMD64/ARM64 emulation if needed, `curl`, and `shasum`:
+Preparing release archives requires Node.js 24+, a multi-platform Docker builder, AMD64/ARM64 emulation if needed, `curl`, and `shasum`:
 
 ```sh
 bash release/prepare.sh
@@ -169,7 +169,7 @@ bash release/check.sh --local
 ```
 
 `prepare.sh` deliberately refreshes the runtime package layer. The final build must reuse that builder/cache; do not add `--no-cache` between source collection and the final build. The release check rejects mismatched package inventories, runtime files, versions or license files.
-It refuses to overwrite an already completed output directory. For isolated testing, set `TUNLIVO_RELEASE_DIR` to a new absolute path for both prepare/check commands. The existing public 1.0.0 artifacts must remain unchanged.
+It refuses to overwrite an already completed output directory. For isolated testing, set `TUNLIVO_RELEASE_DIR` to a new absolute path for both prepare/check commands. All already published artifacts must remain unchanged.
 `TUNLIVO_CACHE_DIR` can select a download-cache directory. `TUNLIVO_REFRESH=0` reuses the Docker build cache for debugging; release workflows use the fresh default.
 
 Do not run `release/publish.sh` as a test: it publishes publicly. `--check` performs only preflight checks and requires an authenticated GitHub CLI.

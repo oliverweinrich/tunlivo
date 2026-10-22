@@ -36,6 +36,7 @@ jobs:
       - name: Check formatting and development dependencies
         run: |
           npm ci --ignore-scripts
+          npm run typecheck
           npm run format:check
           npm audit --audit-level=high
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -48,14 +49,12 @@ jobs:
           npm run test:tooling
           npm run dockerhub:preview
           sudo modprobe wireguard
-      - name: Build pairing tools and run Go checks
-        run: |
-          docker build --target pairing -t tunlivo:pairing-check image
-          docker run --rm --network none --entrypoint sh tunlivo:pairing-check -c             'go test -count=1 ./... && go vet ./... && test -z "$(gofmt -l *.go)"'
       - name: Build with fresh Alpine packages
         id: build
         run: |
           docker buildx build --pull --no-cache-filter runtime --load             --build-arg VERSION="$(cat VERSION)" -t tunlivo:ci image
+      - name: Test runtime security and compatibility
+        run: docker run --rm --network none --read-only --tmpfs /tmp --entrypoint node tunlivo:ci --test /usr/local/share/tunlivo/pair.test.mts
       - name: Test release output permissions
         run: bash release/test-permissions.sh tunlivo:ci
       - name: Build and scan source collection dependencies
@@ -63,9 +62,9 @@ jobs:
           alpine_image="$(awk '$1=="FROM" && $3=="AS" && $4=="runtime" {print $2}' image/Dockerfile)"
           docker build --pull --no-cache --build-arg "ALPINE_IMAGE=$alpine_image" \
             -f release/Source.Dockerfile -t tunlivo:source-helper-check release
-          docker run --rm --network none --entrypoint awk \
-            -v "$PWD/image/inventory.awk:/inventory.awk:ro" tunlivo:source-helper-check \
-            -f /inventory.awk /lib/apk/db/installed > reports/source-helper-packages.tsv
+          docker run --rm --network none --entrypoint node \
+            -v "$PWD/image/runtime/inventory.mts:/inventory.mts:ro" tunlivo:source-helper-check \
+            /inventory.mts /lib/apk/db/installed > reports/source-helper-packages.tsv
           npm run dependencies:report
           TUNLIVO_SCAN_REPORT="$PWD/reports/trivy-source-helper.json" \
             bash .github/scan.sh tunlivo:source-helper-check
@@ -89,6 +88,10 @@ jobs:
         env:
           TUNLIVO_TEST_IMAGE: tunlivo:ci
         run: bash test-integration.sh
+      - name: Test immutable Go baseline and persisted-volume upgrades
+        env:
+          TUNLIVO_TEST_IMAGE: tunlivo:ci
+        run: npm run test:compatibility
       - name: Scan for known vulnerabilities
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: bash .github/scan.sh tunlivo:ci
@@ -122,5 +125,5 @@ jobs:
           CHECK_RESULT: ${{ needs.check.result }}
         with:
           script: |
-            const notify = require('./.github/maintenance-issue.cjs');
+            const { default: notify } = await import(process.cwd() + '/.github/maintenance-issue.mts');
             await notify({ github, context, result: process.env.CHECK_RESULT });
