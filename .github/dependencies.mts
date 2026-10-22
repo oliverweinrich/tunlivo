@@ -1,11 +1,48 @@
+import { fileURLToPath } from 'node:url';
 // Copyright 2026 Oliver Weinrich
 // SPDX-License-Identifier: Apache-2.0
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
-const { parse } = require('yaml');
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { parse } from 'yaml';
 
-function gitDate(root, file, needle) {
+interface UpdateEntry {
+  'package-ecosystem': string;
+  directory?: string;
+  directories?: string[];
+  schedule: { interval: string };
+  ignore?: {
+    'dependency-name': string;
+    'update-types'?: string[];
+    versions?: string[];
+  }[];
+}
+interface Config {
+  updates: UpdateEntry[];
+}
+export interface Row {
+  section: string;
+  name: string;
+  version: string;
+  file: string;
+  updated: string;
+  coverage: string;
+}
+interface PackageRow {
+  name: string;
+  version: string;
+}
+interface RuntimeSnapshot {
+  tag: string;
+  date: string;
+  url: string;
+  packages: PackageRow[];
+}
+interface HelperSnapshot {
+  observed: string;
+  packages: PackageRow[];
+}
+function gitDate(root: string, file: string, needle: string | string[]) {
   const lines = fs.readFileSync(path.join(root, file), 'utf8').split('\n');
   const needles = Array.isArray(needle) ? needle : [needle];
   let index = -1;
@@ -35,7 +72,12 @@ function gitDate(root, file, needle) {
   }
 }
 
-function coverage(config, ecosystem, file, name) {
+function coverage(
+  config: Config,
+  ecosystem: string,
+  file: string,
+  name: string,
+) {
   const directory = path.posix.dirname(`/${file}`);
   const entry = config.updates.find(
     (item) =>
@@ -57,19 +99,19 @@ function coverage(config, ecosystem, file, name) {
   return `Yes (${ecosystem}; ${entry.schedule.interval})`;
 }
 
-function collect(root) {
+function collect(root: string): Row[] {
   const config = parse(
     fs.readFileSync(path.join(root, '.github/dependabot.yml'), 'utf8'),
-  );
-  const rows = [];
+  ) as Config;
+  const rows: Row[] = [];
   function add(
-    section,
-    ecosystem,
-    file,
-    name,
-    version,
-    needle = version,
-    note,
+    section: string,
+    ecosystem: string,
+    file: string,
+    name: string,
+    version: string,
+    needle: string | string[] = version,
+    note?: string,
   ) {
     rows.push({
       section,
@@ -104,7 +146,9 @@ function collect(root) {
     .filter((f) => /^compose\..*\.yaml$/.test(f))
     .sort()) {
     const file = `examples/${name}`;
-    const document = parse(fs.readFileSync(path.join(root, file), 'utf8'));
+    const document = parse(fs.readFileSync(path.join(root, file), 'utf8')) as {
+      services: Record<string, { image: string }>;
+    };
     for (const service of Object.values(document.services)) {
       const pin = service.image;
       const [image, digest] = pin.split('@');
@@ -122,12 +166,12 @@ function collect(root) {
   const pkg = JSON.parse(
     fs.readFileSync(path.join(root, 'package.json'), 'utf8'),
   );
-  const lock = JSON.parse(
+  const lock: { packages: Record<string, { version: string }> } = JSON.parse(
     fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'),
   );
   for (const [location, entry] of Object.entries(lock.packages)) {
     if (!location) continue;
-    const name = location.split('node_modules/').pop();
+    const name = location.split('node_modules/').pop()!;
     const direct =
       Object.hasOwn(pkg.devDependencies || {}, name) ||
       Object.hasOwn(pkg.dependencies || {}, name);
@@ -168,21 +212,6 @@ function collect(root) {
       }
     }
   }
-  const goFile = 'image/pairing/go.mod';
-  const go = fs.readFileSync(path.join(root, goFile), 'utf8');
-  add(
-    'Toolchains and modules',
-    'gomod',
-    goFile,
-    'Go language directive',
-    /^go (\S+)/m.exec(go)[1],
-    'go ',
-    'Manual alignment with the Docker Go toolchain; gomod monitors module dependencies',
-  );
-  for (const match of go.matchAll(
-    /^\s*(?:require\s+)?([\w.-]+\/[\w./-]+)\s+(v\S+)/gm,
-  ))
-    add('Toolchains and modules', 'gomod', goFile, match[1], match[2]);
   add(
     'Toolchains and modules',
     'manual',
@@ -195,8 +224,8 @@ function collect(root) {
   return rows;
 }
 
-function table(rows) {
-  const escape = (value) =>
+function table(rows: Row[]) {
+  const escape = (value: unknown) =>
     String(value).replaceAll('|', '\\|').replaceAll('\n', ' ');
   return [
     '| Dependency | Configured version / pin | Last pin change | Source | Dependabot / maintenance |',
@@ -208,15 +237,15 @@ function table(rows) {
   ].join('\n');
 }
 
-function runtimeInventory(tsv) {
-  const result = new Map();
+function runtimeInventory(tsv: string): PackageRow[] {
+  const result = new Map<string, Map<string, string>>();
   for (const line of tsv.trim().split('\n').slice(1)) {
     const [name, version, license, origin, commit, architecture] =
       line.split('\t');
     if (!name || !version || !architecture)
       throw new Error('Invalid runtime package inventory');
     if (!result.has(name)) result.set(name, new Map());
-    result.get(name).set(architecture, version);
+    result.get(name)!.set(architecture, version);
   }
   return [...result]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -230,7 +259,7 @@ function runtimeInventory(tsv) {
 }
 
 function publishedInventory() {
-  const curl = (url) =>
+  const curl = (url: string) =>
     execFileSync(
       'curl',
       [
@@ -248,7 +277,11 @@ function publishedInventory() {
       ],
       { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
     );
-  const release = JSON.parse(
+  const release: {
+    tag_name: string;
+    published_at: string;
+    assets: { name: string; browser_download_url: string }[];
+  } = JSON.parse(
     curl('https://api.github.com/repos/oliverweinrich/tunlivo/releases/latest'),
   );
   const asset = release.assets.find((a) => a.name === 'packages.tsv');
@@ -261,11 +294,15 @@ function publishedInventory() {
   };
 }
 
-function render(rows, runtime, helper = null) {
+function render(
+  rows: Row[],
+  runtime: RuntimeSnapshot | null,
+  helper: HelperSnapshot | null = null,
+) {
   let text = `# Dependencies\n\nGenerated with \`npm run dependencies\`. This is an informational snapshot, not an update lockfile or a claim that every pin is the latest upstream release. Re-run after dependency changes and before release review. CI also generates an offline report artifact, so Dependabot PRs do not need to edit this snapshot to pass.\n\n“Last pin change” is the UTC date of the Git commit last changing the cited declaration line, not the upstream publication date. Uncommitted files/lines and source archives without Git history are marked accordingly. Full digests/commit pins remain in the cited manifests. Transitive npm dates refer to their lockfile entry. Runtime package dates below refer to the published release as a whole.\n\n`;
   for (const section of [...new Set(rows.map((r) => r.section))])
     text += `## ${section}\n\n${table(rows.filter((r) => r.section === section))}\n\n`;
-  text += `## Runtime OS packages\n\nDependabot does not update individual \`apk\` packages. Scheduled native CI builds run \`apk upgrade\`/\`apk add\`, compare installed packages with the published image and run vulnerability scans. A maintainer still reviews, merges and releases updates. The Go standard library is provided by the pinned Go builder; there are currently no external Go modules.\n\n`;
+  text += `## Runtime OS packages\n\nDependabot does not update individual \`apk\` packages. Scheduled native CI builds run \`apk upgrade\`/\`apk add\`, compare installed packages with the published image and run vulnerability scans. A maintainer still reviews, merges and releases updates. The current source tree uses Node.js from Alpine and no external runtime npm modules. A published inventory can still describe a previous Go-based release until this migration is released.\n\n`;
   if (runtime)
     text += `Published-image snapshot: [${runtime.tag}](${runtime.url}), published ${runtime.date}. These are the installed package versions in that release, including transitive/base packages; a fresh local build can differ. All rows have **no direct Dependabot coverage** and share that release publication date. The TSV retains per-architecture versions, licenses, origin commits and package provenance.\n\n| Package | Installed version |\n| --- | --- |\n${runtime.packages.map((p) => `| ${p.name} | ${p.version} |`).join('\n')}\n\n`;
   else
@@ -274,13 +311,16 @@ function render(rows, runtime, helper = null) {
     text += `## Source helper OS packages\n\nLocal/CI helper inventory observed ${helper.observed}, from \`reports/source-helper-packages.tsv\`. This is a build snapshot, not part of the published runtime inventory and not a per-package update date. All packages below are maintained through fresh Alpine helper builds and scans, **not direct Dependabot PRs**. Download the native maintenance report artifacts for the other architecture.\n\n| Package | Installed version |\n| --- | --- |\n${helper.packages.map((p) => `| ${p.name} | ${p.version} |`).join('\n')}\n\n`;
   else
     text += `## Source helper OS packages\n\nNo local helper inventory is available. Exact helper package versions are in the native CI maintenance artifact \`source-helper-packages.tsv\`; place it in \`reports/\` before regenerating to include that snapshot here. Do not infer helper package versions from the runtime inventory.\n\n`;
-  text += `## Coverage boundaries\n\n- The source helper inherits \`ALPINE_IMAGE\` from the pinned runtime base; it has no separate image pin for Dependabot to update. Its \`bash abuild curl grep tar xz zstd\` packages (and their dependencies) resolve when that helper is built, not from the runtime TSV. CI rebuilds and scans this helper; its exact inventory is a separate report artifact.\n- \`oliverweinrich/tunlivo\` in the examples is this project's output, explicitly excluded from Dependabot. \`release/set-version.sh\` owns those references.\n- \`.node-version\` and the Node engine requirement need manual major-version review. GitHub-hosted runner OS, Docker/Compose and QEMU installed by setup actions follow their providers/action inputs; host OS/kernel/Docker maintenance remains the operator's responsibility.\n- Dependabot tracks future external modules in \`image/pairing/go.mod\`. Review the Go language directive alongside Docker toolchain updates; do not assume it is independently upgraded. npm security updates/alerts additionally require GitHub repository settings to be enabled; lockfile updates must respect parent constraints.\n- Trivy's vulnerability database refreshes during scans. The scanner image pin is maintained by Dependabot; software inside third-party images/actions is maintained indirectly through those upstream releases, not as separate Tunlivo manifests.\n- Optional local tools such as \`actionlint\`, Git and the VS Code Prettier extension are not repository-pinned dependencies and require local maintenance.\n\nThe machine-readable sources of truth are manifests/lockfiles and each release's package inventory. For a standardized full image SBOM (SPDX/CycloneDX), use an image-aware SBOM tool against an immutable image digest; this Markdown file and \`packages.tsv\` are not substitutes for a complete SBOM.\n\nReferences: [Dependabot ecosystems](https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories), [maintenance workflow](.github/README.md).\n`;
+  text += `## Coverage boundaries\n\n- The source helper inherits \`ALPINE_IMAGE\` from the pinned runtime base; it has no separate image pin for Dependabot to update. Its \`bash abuild curl grep tar xz zstd nodejs\` packages (and their dependencies) resolve when that helper is built, not from the runtime TSV. CI rebuilds and scans this helper; its exact inventory is a separate report artifact.\n- \`oliverweinrich/tunlivo\` in the examples is this project's output, explicitly excluded from Dependabot. \`release/set-version.sh\` owns those references.\n- \`.node-version\` and the Node engine requirement need manual major-version review. GitHub-hosted runner OS, Docker/Compose and QEMU installed by setup actions follow their providers/action inputs; host OS/kernel/Docker maintenance remains the operator's responsibility.\n- TypeScript and Node type declarations are development dependencies maintained by the npm updater. Runtime Node.js is an Alpine package maintained through fresh builds/scans. npm security updates/alerts additionally require GitHub repository settings to be enabled; lockfile updates must respect parent constraints.\n- Trivy's vulnerability database refreshes during scans. The scanner image pin is maintained by Dependabot; software inside third-party images/actions is maintained indirectly through those upstream releases, not as separate Tunlivo manifests.\n- The immutable image in \`.github/compatibility-baseline.json\` is a deliberate historical test fixture, excluded from normal updates. It is pulled only by compatibility tests, not installed in the runtime; changing it would lose the migration baseline.\n- Optional local tools such as \`actionlint\`, Git and the VS Code Prettier extension are not repository-pinned dependencies and require local maintenance.\n\nThe machine-readable sources of truth are manifests/lockfiles and each release's package inventory. For a standardized full image SBOM (SPDX/CycloneDX), use an image-aware SBOM tool against an immutable image digest; this Markdown file and \`packages.tsv\` are not substitutes for a complete SBOM.\n\nReferences: [Dependabot ecosystems](https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories), [maintenance workflow](.github/README.md).\n`;
   return text;
 }
 
-if (require.main === module) {
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+) {
   try {
-    const root = path.resolve(__dirname, '..');
+    const root = path.resolve(import.meta.dirname, '..');
     const args = process.argv.slice(2);
     const offline = args.includes('--offline');
     const outputIndex = args.indexOf('--output');
@@ -311,8 +351,10 @@ if (require.main === module) {
       console.log(`Dependency inventory written to ${output}`);
     } else process.stdout.write(text);
   } catch (error) {
-    console.error(error.message);
+    console.error(
+      error instanceof Error ? error.message : 'Dependency report failed',
+    );
     process.exitCode = 1;
   }
 }
-module.exports = { collect, coverage, gitDate, runtimeInventory, render };
+export { collect, coverage, gitDate, runtimeInventory, render };

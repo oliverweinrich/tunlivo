@@ -38,10 +38,12 @@ retry() {
 start_gateway() {
   local role="$1"
   shift
+  local role_image="$image"
+  if [[ "$role" == server ]]; then role_image="${TUNLIVO_SERVER_IMAGE:-$image}"; else role_image="${TUNLIVO_CLIENT_IMAGE:-$image}"; fi
   docker run -d --name "$prefix-$role" --network "$prefix" \
     --cap-drop ALL --cap-add NET_ADMIN --cap-add NET_RAW --cap-add NET_BIND_SERVICE \
     --cap-add SETUID --cap-add SETGID --security-opt no-new-privileges:true \
-    --read-only --tmpfs /run --tmpfs /tmp "$@" "$image" >/dev/null
+    --read-only --tmpfs /run --tmpfs /tmp "$@" "$role_image" >/dev/null
 }
 start_http() {
   printf 'events {} http { server { listen 18080; return 200 "tunnel-ok"; } }\n' > "$work/app.conf"
@@ -136,6 +138,9 @@ test_pairing() (
   for role in server client; do docker exec "$prefix-$role" sha256sum /data/state.json > "$work/$role.hash"; done
   # Nur die Volumes behalten; PAIR_CODE beim Neuerstellen nicht mehr übergeben.
   docker rm -f "$client" "$server" >/dev/null
+  if [[ -n "${TUNLIVO_RESTART_IMAGE:-}" ]]; then
+    export TUNLIVO_SERVER_IMAGE="$TUNLIVO_RESTART_IMAGE" TUNLIVO_CLIENT_IMAGE="$TUNLIVO_RESTART_IMAGE"
+  fi
   start_pairing_peer server
   start_pairing_peer client
   check_gateways

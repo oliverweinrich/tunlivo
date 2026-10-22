@@ -14,7 +14,7 @@ This file preserves project context for future development sessions. Keep it cur
 
 ## Fresh-session prerequisites
 
-Run commands below from the repository root. Development needs Node.js 24+ with npm and a running Docker daemon with Compose v2. The Docker daemon must support the containerd image store for multi-platform image load/save. No host Go installation is required: the pinned `pairing` build stage supplies Go. Host-side scripts accommodate Bash 3.2 on macOS; scripts running inside Alpine use its installed modern Bash.
+Run commands below from the repository root. Development needs Node.js 24+ with npm and a running Docker daemon with Compose v2. The Docker daemon must support the containerd image store for multi-platform image load/save. No Go installation is required. Runtime and repository tools use native erasable TypeScript on Node.js; npm and the TypeScript compiler are development-only. The image installs Node.js from the pinned Alpine branch. Host-side scripts accommodate Bash 3.2 on macOS; scripts running inside Alpine use its installed modern Bash.
 
 ```sh
 git rev-parse --show-toplevel
@@ -45,18 +45,20 @@ The client initiates the tunnel, allowing services behind NAT without home-route
 - Configuration uses Docker Compose environment variables. `PROXY_ROUTES` maps TCP/UDP listeners to destinations; `WG_*` configures WireGuard.
 - Manual mode accepts keys and peers. Automatic pairing uses a one-time invitation and persistent state under `/data`; each side needs its own volume. Automatic pairing currently supports one client per server.
 - Health means local gateway readiness; it does not guarantee a recent peer handshake or a reachable application. Pairing is not healthy until initial pairing completes.
-- Do not add Python. The Go helper is intentional: it implements the pairing protocol. The runtime does not need Node.js or the Go toolchain.
+- Own runtime and repository tooling use TypeScript (`.mts`), checked with strict `tsc --noEmit`. Do not add Python or Go. Keep WireGuard and nginx as external native dependencies. The runtime has no npm dependencies; OpenSSL generates pairing certificates and flock protects cross-process state. Tiny `/usr/local/bin` shell launchers retain the existing CLI paths. Release/source-collection and integration orchestration remain Bash because they invoke Docker and official Alpine APKBUILD shell recipes; converting those is a separate change, not required to execute the TypeScript gateway.
 
 ## Repository map
 
 | Path                                  | Responsibility                                                                                                          |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `image/Dockerfile`                    | Pinned Go builder, cross-compiled pairing binary, Alpine runtime, labels, inventories and release-source export target. |
-| `image/configure.sh`                  | Validate environment configuration and generate WireGuard/nginx configuration.                                          |
-| `image/entrypoint.sh`                 | Pairing startup, interface/nginx lifecycle and shutdown cleanup.                                                        |
-| `image/healthcheck.sh`                | Local readiness check.                                                                                                  |
-| `image/pairing/`                      | Go pairing helper and its unit tests; currently standard library only.                                                  |
-| `image/inventory.awk`                 | Installed Alpine package provenance inventory.                                                                          |
+| `image/Dockerfile`                    | Pinned Alpine runtime with Node.js/WireGuard/nginx/OpenSSL/flock, labels, inventories and release-source export target. |
+| `image/configure.sh`                  | Compatibility launcher for TypeScript gateway configuration.                                                            |
+| `image/entrypoint.sh`                 | Compatibility launcher for TypeScript process/interface lifecycle.                                                      |
+| `image/healthcheck.sh`                | Compatibility launcher for the local TypeScript readiness check.                                                        |
+| `image/runtime/pair.mts`              | Pinned-TLS enrollment, legacy-compatible state, process locks and pairing CLI.                                          |
+| `image/runtime/gateway.mts`           | Configuration validation, nginx/WireGuard subprocesses, readiness and signal cleanup.                                   |
+| `image/runtime/pair.test.mts`         | Security, concurrency, pinning, state and inventory tests run inside the runtime image.                                 |
+| `image/runtime/inventory.mts`         | Installed Alpine package provenance inventory.                                                                          |
 | `image/legal/`                        | Notices shipped in the image; Alpine notices and `release.json` are generated.                                          |
 | `README.md`, `SECURITY.md`, `docs/`   | User setup, security reporting, compatibility, release checklist and operations/recovery.                               |
 | `AGENTS.md`, `FEATURES.md`            | Agent entry point and public roadmap.                                                                                   |
@@ -65,7 +67,7 @@ The client initiates the tunnel, allowing services behind NAT without home-route
 | `release/`                            | Version changes, source/license collection, artifact checks, publication and release-tool tests.                        |
 | `.github/workflows/`                  | Maintenance checks and gated release pipeline.                                                                          |
 | `.github/scan.sh`, `.github/scanner/` | Pinned Trivy scanner and image scan wrapper.                                                                            |
-| `.github/maintenance-issue*.cjs`      | Maintenance issue reporting and unit tests.                                                                             |
+| `.github/maintenance-issue*.mts`      | Maintenance issue reporting and unit tests.                                                                             |
 
 Build context is **`image/`**, not the repository root. `image/.dockerignore` is an allowlist. Source archives also use an explicit allowlist in `release/prepare.sh`; add required new source/build files there when necessary.
 
@@ -96,11 +98,12 @@ These are documented conventions, not enforced by commit-message hooks. Existing
 
 ## Development and checks
 
-Documentation is in English. Follow the existing shell/Go style; scripts support the macOS-supplied Bash 3.2 where applicable. Keep npm development dependencies pinned to exact versions with the lockfile committed.
+Documentation is in English. Use strict TypeScript and follow existing shell style; scripts support the macOS-supplied Bash 3.2 where applicable. Keep npm development dependencies pinned to exact versions with the lockfile committed.
 
 ```sh
 # Local setup (installs pinned tools and activates hooks)
 npm ci
+npm run typecheck
 npm run format:check
 npm audit --audit-level=high
 bash release/test.sh
@@ -109,14 +112,15 @@ for file in image/*.sh release/*.sh .github/*.sh test-integration.sh; do bash -n
 git diff --check
 ```
 
-`npm ci` activates Husky locally. Pre-commit uses lint-staged to format staged supported files while preserving partial staging. Pre-push checks formatting. Use `npm run format` to fix formatting and review the diff. CI installs with `npm ci --ignore-scripts`. Prettier excludes legal texts and generated/private files; it does not format Bash, Go, Dockerfiles or AWK. Go uses `gofmt`, `go test` and `go vet` (see CI for container commands).
+`npm ci` activates Husky locally. Pre-commit uses lint-staged to format staged supported files while preserving partial staging. Pre-push checks formatting. Use `npm run format` to fix formatting and review the diff. CI installs with `npm ci --ignore-scripts`. Prettier excludes legal texts and generated/private files; it does not format Bash or Dockerfiles. Native Node type stripping does not type-check: `npm run typecheck` must pass independently. Avoid transform-only TS features such as enums/decorators/parameter properties. Imports use explicit `.mts` extensions.
 
-For Go changes, use the pinned builder and run the same checks as CI:
+For runtime changes, run unit tests inside the image (they need Linux `wg`, `flock` and OpenSSL, but no external network):
 
 ```sh
-docker build --target pairing -t tunlivo:pairing-check image
-docker run --rm --network none --entrypoint sh tunlivo:pairing-check \
-  -c 'go test -count=1 ./... && go vet ./... && test -z "$(gofmt -l *.go)"'
+version="$(cat VERSION)"
+docker build --build-arg VERSION="$version" -t "tunlivo:$version" image
+docker run --rm --network none --read-only --tmpfs /tmp --entrypoint node \
+  "tunlivo:$version" --test /usr/local/share/tunlivo/pair.test.mts
 ```
 
 If `actionlint` is installed, run it from the root for workflow changes. It is a separate tool, not an npm dependency; do not assume a previous session's temporary installation exists.
@@ -127,12 +131,15 @@ For runtime changes, build and run the integration tests:
 version="$(cat VERSION)"
 docker build --build-arg VERSION="$version" -t "tunlivo:$version" image
 bash test-integration.sh
+npm run test:compatibility
 bash release/test-permissions.sh "tunlivo:$version"
 TUNLIVO_SCAN_REPORT="$PWD/reports/local-review.json" \
   bash .github/scan.sh "tunlivo:$version"
 ```
 
 A Linux kernel with WireGuard support and Docker network capabilities is required. Docker Desktop provides a Linux VM on macOS. Prefer native architecture integration tests. Override the test image with `TUNLIVO_TEST_IMAGE` when testing a separately named image.
+
+The immutable Go migration baseline is `.github/compatibility-baseline.json`; never auto-update it with normal releases. `npm run test:compatibility` tests old server/new client, new server/old client and upgrading both old volumes to the new image while retaining byte-identical state, plus rolling new state back to the Go baseline. These fixture images are test inputs, not runtime dependencies.
 
 The integration test covers manual peers, TCP/UDP forwarding, a missing/restarted destination, automatic pairing and recreation with retained state but no invitation code. Its image defaults to `tunlivo:$(cat VERSION)`; setting `DOCKER_DEFAULT_PLATFORM` selects a variant but does not make an emulated test native. The permissions test covers non-root host access after both source-collection success and failure.
 
@@ -141,7 +148,7 @@ Tests create disposable containers, networks, volumes and temporary files, then 
 ## Validation scope and handoff
 
 - Documentation/configuration-only work: formatting, `git diff --check`, local Markdown links and matching behavior in scripts. Verify documented operational commands with disposable fixtures when changing them.
-- Pairing/runtime work: Go checks where relevant, image build, complete integration suite and scan. Changes to the pairing protocol/state also need compatibility fixtures described in `docs/VERSIONING.md`.
+- Pairing/runtime work: strict typecheck and runtime unit tests, image build, complete integration suite and scan. Changes to the pairing protocol/state also need compatibility fixtures described in `docs/VERSIONING.md`.
 - Release/build/workflow work: Bash syntax, release-tool tests, workflow lint and the permissions regression. If source collection or source packaging changes, prepare into a new isolated output directory and check the final multi-platform image against it; never overwrite published output as a test.
 - Before handing off: review `git diff` and untracked files, preserve user edits, list checks actually run and their limits. A local ARM64 run does not establish native AMD64 behavior; use the hosted matrix for the other architecture. Do not report tests of an old image as verification of new code.
 - This repository is maintained solo for now. Do not add a contributor process or require a second reviewer without a request. Read-only reviews and reversible local fixes can proceed within the requested task; external actions require the user's applicable authorization.
@@ -149,7 +156,7 @@ Tests create disposable containers, networks, volumes and temporary files, then 
 ## Automation and release invariants
 
 - `check.yml` runs on PRs, pushes to `main`, manual dispatch and **weekly** on Monday at 05:17 UTC. It tests natively on AMD64 and ARM64, compares installed packages and scans images. Scheduled/manual monitoring updates a maintenance issue.
-- Dependabot checks Docker, GitHub Actions, Go and npm weekly. npm audit also runs in CI. Known high/critical findings block checks; a clean scan is not a guarantee of no vulnerabilities.
+- Dependabot checks Docker, GitHub Actions and npm weekly. npm audit also runs in CI. Known high/critical findings block checks; a clean scan is not a guarantee of no vulnerabilities.
 - Alpine packages installed/upgraded by `apk` require fresh builds to detect changes; Dependabot's Docker tag updates alone do not cover them.
 - Updates are reviewed and merged through PRs. Merging does not publish an image. Check current branch rules; the expected required checks are `Check (amd64)` and `Check (arm64)`.
 - `VERSION` is the version source of truth. Run `bash release/set-version.sh X.Y.Z` to update it and documentation/examples. Use a new increasing version; historical examples in maintenance docs are not the next release number.
@@ -157,20 +164,29 @@ Tests create disposable containers, networks, volumes and temporary files, then 
 - `release.yml` first prepares sources, builds and scans the multi-platform candidate. It exports that exact image as a checksummed artifact. Separate native AMD64/ARM64 jobs load and test it. Only after both succeed does the publication job request the `dockerhub` environment approval and load the same candidate and matching release state.
 - Do not rebuild the runtime image after testing. Do not weaken or skip a platform test to make a release pass. QEMU remains useful for cross-platform builds/file checks, not as a substitute for native WireGuard integration tests.
 - Only image publication has `contents: write`. Docker Hub credentials are limited to the protected image publication and overview-sync jobs (the latter needs only contents read). The source helper is also rebuilt/scanned and its package inventory uploaded by native checks. The separate maintenance notification job has `issues: write` to manage its own issue. The `dockerhub` environment supplies `DOCKERHUB_USERNAME`, optional `DOCKERHUB_REPOSITORY` (default `oliverweinrich/tunlivo`) and push secret `DOCKERHUB_TOKEN` (Read/Write). Metadata steps separately use `DOCKERHUB_OVERVIEW_TOKEN` (Read/Write/Delete required by the Overview API); never pass it to image login/push steps. Never commit or print credentials.
-- Docker Hub Overview text comes from `docs/DOCKERHUB.template.md`; `.github/dockerhub.cjs` renders `VERSION`, actual pairing examples and commit-pinned source links. `npm run dockerhub:preview` writes a safe local preview. Release sync runs after verified image publication; the separate manual `dockerhub-overview.yml` retries metadata only on `main`, gated by the `dockerhub` environment and requiring `VERSION` to match published `latest`. Do not rebuild or republish an immutable image merely because metadata sync failed. The sync preserves short description/category and verifies saved `full_description`. Tests must mock API writes.
+- Docker Hub Overview text comes from `docs/DOCKERHUB.template.md`; `.github/dockerhub.mts` renders `VERSION`, actual pairing examples and commit-pinned source links. `npm run dockerhub:preview` writes a safe local preview. Release sync runs after verified image publication; the separate manual `dockerhub-overview.yml` retries metadata only on `main`, gated by the `dockerhub` environment and requiring `VERSION` to match published `latest`. Do not rebuild or republish an immutable image merely because metadata sync failed. The sync preserves short description/category and verifies saved `full_description`. Tests must mock API writes.
 - `release/publish.sh` publishes publicly. `--check` is a read-only availability preflight requiring GitHub CLI authentication. Publication creates matching public source/license assets before pushing runtime images.
 
 ## Source and license obligations
 
 Own code uses Apache-2.0 with attribution to Oliver Weinrich. Third-party components retain their own licenses. Keep `LICENSE`, `NOTICE` and `THIRD_PARTY_NOTICES.md` byte-identical to their corresponding copies in `image/legal/`. Do not bulk-format these files or claim legal certainty from technical checks.
 
-A release must retain matching sources, Alpine recipes/patches, verified upstream archives, Go sources, notices, package inventory and checksums for the actual image. `prepare.sh` derives the source helper's Alpine base from the pinned runtime base. `check.sh` verifies both architectures against those materials, including runtime hashes and shipped notices.
+A release must retain matching sources, Alpine recipes/patches, verified upstream archives (including Node.js and its bundled dependencies), notices, package inventory and checksums for the actual image. `prepare.sh` derives the source helper's Alpine base from the pinned runtime base. `check.sh` verifies both architectures against those materials, including runtime hashes and shipped notices.
 
 A normal development build can contain generated license metadata from an earlier preparation; its version label alone does not make it a distributable release. Always run preparation and `release/check.sh` for a release candidate.
 
 Preparation refreshes runtime packages by default. Reuse the builder/cache for the final image; adding a fresh rebuild between collection and final verification can change the installed packages. `COMPLETE` marks a prepared release and prevents accidental overwrites. Use separate absolute `TUNLIVO_RELEASE_DIR` and `TUNLIVO_CACHE_DIR` paths for isolated work; `TUNLIVO_REFRESH=0` is for debugging, not the normal release path.
 
 Never overwrite already published archives. Before retrying a failed publication, inspect GitHub releases, registry tags and Actions artifacts for partial publication. Re-running an old workflow run executes its old revision, not a later fix. If a tagged failed release needs code changes, prefer a new version/tag pointing to the corrected merged commit.
+
+## TypeScript migration compatibility invariants
+
+- Preserve the PascalCase JSON state fields and base64-encoded PEM strings from Go `encoding/json`. Never rewrite a valid existing state on startup, including its exact keys/certificate/token/expiry.
+- `state.lock` is the same OS flock file/inode used by Go. Secret request values go through stdin to lock workers, not argv. Do not replace the lock with a process-local mutex while CLI commands exist.
+- Invitations remain `wg1.<sha256-of-certificate-DER>.<token>`; retain TLS 1.3 minimum, constant-time token checks, body/header/time limits and single-peer/idempotent retry policy.
+- Validate the pinned certificate **before** sending the HTTP bearer token. Node's `rejectUnauthorized: false` alone is not pinning; the client explicitly establishes/verifies TLS first, then sends HTTP on that socket.
+- Node `spawnSync` pipes are sockets; nginx cannot open `/dev/stderr` against those sockets. Run `nginx -t` with inherited stderr and keep gateway process logs free of private keys/state.
+- Follow `docs/TYPESCRIPT_MIGRATION.md` for the remaining shell boundary and release/rollback implications.
 
 ## Lessons from release failures
 

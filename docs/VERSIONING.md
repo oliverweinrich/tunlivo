@@ -4,11 +4,11 @@ Tunlivo uses stable `MAJOR.MINOR.PATCH` versions, recorded in the root `VERSION`
 
 | Change                                                                         | Version increment |
 | ------------------------------------------------------------------------------ | ----------------- |
-| Compatible bug fix, security fix or dependency/package refresh                 | Patch             |
+| Compatible bug fix, security fix, internal refactor or package refresh         | Patch             |
 | New optional capability with existing configurations still working             | Minor             |
 | Breaking configuration, protocol, persisted-state or supported-platform change | Major             |
 
-Assess dependency updates by their impact on Tunlivo. An Alpine or Go major/minor update does not automatically require a Tunlivo major release, but it still requires compatibility tests. Commit prefixes do not select or publish a release automatically. Documentation-only changes do not normally require a new runtime image.
+Assess dependency updates by their impact on Tunlivo. An Alpine or Node.js major/minor update does not automatically require a Tunlivo major release, but it still requires compatibility tests. Commit prefixes do not select or publish a release automatically. Documentation-only changes do not normally require a new runtime image.
 
 ## Compatibility contract
 
@@ -23,7 +23,7 @@ Before changing state or protocol formats:
 - Document whether migration is automatic, whether both sides must update together, and whether an older image can read the new state.
 - Explain rollback before releasing. An image downgrade alone may be insufficient after a state migration; restore the matching pre-upgrade backup on both sides when necessary.
 
-Current state is stored as JSON by the Go pairing helper and has no explicit schema-version field. Do not infer downgrade compatibility from successful JSON parsing. Changes to that structure require an explicit compatibility assessment; a future schema-version field is not implemented by this policy.
+Current state is stored as JSON by the TypeScript pairing helper, retains the previous Go encoding, and has no explicit schema-version field. Do not infer downgrade compatibility from successful JSON parsing. Changes to that structure require an explicit compatibility assessment; a future schema-version field is not implemented by this policy.
 
 ## Release identity and notes
 

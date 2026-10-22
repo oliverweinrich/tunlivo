@@ -14,13 +14,13 @@ mkdir -p /output /cache
 export TUNLIVO_OUTPUT_UID=12345 TUNLIVO_OUTPUT_GID=12345
 printf 'architecture\tversion\tpackage\torigin\tcommit\n' > /output/packages.tsv
 bash /collector.sh
-su release-test -s /bin/sh -c 'mkdir /output/licenses/go; touch /cache/host-write'
+su release-test -s /bin/sh -c 'mkdir /output/licenses/application; touch /cache/host-write'
 # A failed source lookup must retain its failure status and restore permissions.
 printf 'arch\t1\tpackage\tinvalid/origin\tinvalid\n' >> /output/packages.tsv
 chown -R 0:0 /output /cache
 if bash /collector.sh; then
   echo 'Invalid provenance unexpectedly succeeded.' >&2; exit 1
 fi
-su release-test -s /bin/sh -c 'touch /output/licenses/go/retry; rm -rf /cache/recipes'
+su release-test -s /bin/sh -c 'touch /output/licenses/application/retry; rm -rf /cache/recipes'
 echo 'OK: Source output is writable by the non-root host user after success and failure.'
 TEST

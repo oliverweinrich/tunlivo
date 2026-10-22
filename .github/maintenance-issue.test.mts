@@ -1,13 +1,15 @@
 // Copyright 2026 Oliver Weinrich
 // SPDX-License-Identifier: Apache-2.0
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const notify = require('./maintenance-issue.cjs');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import notify from './maintenance-issue.mts';
+import type { Issue, IssueChange } from './maintenance-issue.mts';
+import type { TestContext } from 'node:test';
 
-function fixture(t, existing = []) {
+function fixture(t: TestContext, existing: Issue[] = []) {
   const cwd = process.cwd();
   const directory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'tunlivo-issue-test-'),
@@ -23,14 +25,16 @@ function fixture(t, existing = []) {
     fs.writeFileSync(`${report}/packages.diff`, '');
     fs.writeFileSync(`${report}/trivy.json`, JSON.stringify({ Results: [] }));
   }
-  const writes = [];
+  const writes: (IssueChange & { action: string })[] = [];
   const github = {
     paginate: async () => existing,
     rest: {
       issues: {
         listForRepo: () => {},
-        create: async (value) => writes.push({ action: 'create', ...value }),
-        update: async (value) => writes.push({ action: 'update', ...value }),
+        create: async (value: IssueChange) =>
+          writes.push({ action: 'create', ...value }),
+        update: async (value: IssueChange) =>
+          writes.push({ action: 'update', ...value }),
       },
     },
   };
@@ -55,8 +59,8 @@ test('package updates create an actionable issue', async (t) => {
   );
   await notify({ ...f, result: 'success' });
   assert.equal(f.writes[0].action, 'create');
-  assert.match(f.writes[0].body, /nginx new/);
-  assert.match(f.writes[0].body, /actions\/runs\/123/);
+  assert.match(f.writes[0].body!, /nginx new/);
+  assert.match(f.writes[0].body!, /actions\/runs\/123/);
 });
 test('known vulnerabilities update the existing issue', async (t) => {
   const f = fixture(t, [{ title: 'Dependency maintenance', number: 7 }]);
@@ -80,7 +84,7 @@ test('known vulnerabilities update the existing issue', async (t) => {
   await notify({ ...f, result: 'failure' });
   assert.equal(f.writes[0].action, 'update');
   assert.equal(f.writes[0].issue_number, 7);
-  assert.match(f.writes[0].body, /CVE-TEST/);
+  assert.match(f.writes[0].body!, /CVE-TEST/);
 });
 test('resolved checks close the existing issue', async (t) => {
   const f = fixture(t, [{ title: 'Dependency maintenance', number: 7 }]);
@@ -92,12 +96,12 @@ test('missing or unreadable reports remain visible', async (t) => {
   fs.writeFileSync('reports/maintenance-amd64/trivy.json', 'broken');
   fs.rmSync('reports/maintenance-arm64/trivy.json');
   await notify({ ...f, result: 'success' });
-  assert.match(f.writes[0].body, /unreadable/);
-  assert.match(f.writes[0].body, /missing/);
+  assert.match(f.writes[0].body!, /unreadable/);
+  assert.match(f.writes[0].body!, /missing/);
 });
 test('failed checks are reported even when no artifacts exist', async (t) => {
   const f = fixture(t);
   fs.rmSync('reports', { recursive: true });
   await notify({ ...f, result: 'failure' });
-  assert.match(f.writes[0].body, /found 0/);
+  assert.match(f.writes[0].body!, /found 0/);
 });

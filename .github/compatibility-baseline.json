@@ -1,0 +1,4 @@
+{
+  "image": "oliverweinrich/tunlivo:1.0.3@sha256:fb9c5df1c38e3c3612f8bb202f516a47092b0f90b3983991871eb9b2549a9980",
+  "purpose": "Immutable Go migration fixture. Do not update with normal releases or Dependabot."
+}

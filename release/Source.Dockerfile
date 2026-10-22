@@ -2,6 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 ARG ALPINE_IMAGE
 FROM ${ALPINE_IMAGE}
-RUN apk add --no-cache bash abuild curl grep tar xz zstd
+RUN apk add --no-cache bash abuild curl grep tar xz zstd nodejs
 COPY collect-sources.sh /usr/local/bin/collect-sources
 ENTRYPOINT ["/bin/bash", "/usr/local/bin/collect-sources"]

@@ -15,7 +15,7 @@ The client initiates the connection. It needs neither a static public IP nor
 router port forwarding. The tunnel connects the gateway containers; it does
 not automatically route all traffic from either host.
 
-**Image:** [`oliverweinrich/tunlivo:1.0.3`](https://hub.docker.com/r/oliverweinrich/tunlivo).
+**Image:** [`oliverweinrich/tunlivo:1.0.4`](https://hub.docker.com/r/oliverweinrich/tunlivo).
 
 To build the image locally, run this from the repository root:
 
@@ -108,8 +108,8 @@ Generate a separate key pair on **each** machine:
 
 ```sh
 umask 077
-docker run --rm --network none --entrypoint wg oliverweinrich/tunlivo:1.0.3 genkey > private.key
-docker run --rm -i --network none --entrypoint wg oliverweinrich/tunlivo:1.0.3 pubkey < private.key > public.key
+docker run --rm --network none --entrypoint wg oliverweinrich/tunlivo:1.0.4 genkey > private.key
+docker run --rm -i --network none --entrypoint wg oliverweinrich/tunlivo:1.0.4 pubkey < private.key > public.key
 ```
 
 | Placeholder          | Value                                  |
@@ -179,6 +179,12 @@ To run the isolated Docker integration tests after the local build above:
 ```sh
 bash test-integration.sh
 ```
+
+## Runtime implementation
+
+The gateway application and repository tools use TypeScript on Node.js. WireGuard
+and nginx remain the native tunnel/proxy components. Existing pairing state and
+the enrollment protocol are retained; see the [migration notes](docs/TYPESCRIPT_MIGRATION.md).
 
 ## Updates and releases
 

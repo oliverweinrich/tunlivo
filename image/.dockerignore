@@ -3,9 +3,8 @@
 !entrypoint.sh
 !healthcheck.sh
 !configure.sh
-!pairing/
-!pairing/*.go
-!pairing/go.mod
-!inventory.awk
+!gateway-pair
+!runtime/
+!runtime/*.mts
 !legal/
 !legal/**

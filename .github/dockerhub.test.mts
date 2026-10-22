@@ -1,12 +1,13 @@
 // Copyright 2026 Oliver Weinrich
 // SPDX-License-Identifier: Apache-2.0
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-const fs = require('node:fs');
-const { parse } = require('yaml');
-const { render, publish } = require('./dockerhub.cjs');
-const root = path.resolve(__dirname, '..');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import fs from 'node:fs';
+import { parse } from 'yaml';
+import type { Fetcher } from './dockerhub.mts';
+import { render, publish } from './dockerhub.mts';
+const root = path.resolve(import.meta.dirname, '..');
 const env = { DOCKERHUB_USERNAME: 'test-user', DOCKERHUB_TOKEN: 'test-secret' };
 
 test('overview uses current version, immutable links and actual Compose examples', () => {
@@ -42,14 +43,20 @@ test('overview uses current version, immutable links and actual Compose examples
   );
 });
 
-function hub(options = {}) {
-  const calls = [];
+function hub(
+  options: {
+    mismatch?: boolean;
+    patchDenied?: boolean;
+    badReadback?: boolean;
+  } = {},
+) {
+  const calls: (RequestInit & { url: string })[] = [];
   const candidate = {
     repository: 'example/gateway',
     version: '1.2.3',
     overview: '# Test overview\n',
   };
-  const fetchImpl = async (url, init) => {
+  const fetchImpl: Fetcher = async (url, init) => {
     calls.push({ url, ...init });
     let value;
     if (url.endsWith('/tags/1.2.3')) value = { digest: 'sha256:tested' };
@@ -74,10 +81,13 @@ test('sync modifies only full_description and verifies the saved content', async
   const h = hub();
   await publish(h.candidate, env, h.fetchImpl);
   const patch = h.calls.find((call) => call.method === 'PATCH');
-  assert.deepEqual(JSON.parse(patch.body), {
+  assert.deepEqual(JSON.parse(String(patch!.body)), {
     full_description: h.candidate.overview,
   });
-  assert.equal(patch.headers.Authorization, 'Bearer mock-access-token');
+  assert.equal(
+    (patch!.headers as Record<string, string>).Authorization,
+    'Bearer mock-access-token',
+  );
   assert(
     h.calls.every(
       (call) =>
@@ -104,6 +114,7 @@ test('permission and readback failures are actionable and do not expose credenti
   for (const options of [{ patchDenied: true }, { badReadback: true }]) {
     const h = hub(options);
     await assert.rejects(publish(h.candidate, env, h.fetchImpl), (error) => {
+      assert(error instanceof Error);
       assert(!error.message.includes(env.DOCKERHUB_TOKEN));
       return /retry/.test(error.message);
     });

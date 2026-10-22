@@ -30,7 +30,7 @@ for architecture in amd64 arm64; do
   cmp "$work/packages-$architecture.tsv" "$output/seed/linux_$architecture/packages.tsv"
   docker run --rm --platform "linux/$architecture" --network none --entrypoint sha256sum \
     "$image" /usr/local/bin/gateway-pair /usr/local/bin/entrypoint.sh \
-    /usr/local/bin/healthcheck.sh /usr/local/bin/configure.sh /usr/local/share/tunlivo/inventory.awk \
+    /usr/local/bin/healthcheck.sh /usr/local/bin/configure.sh /usr/local/share/tunlivo/gateway.mts /usr/local/share/tunlivo/pair.mts /usr/local/share/tunlivo/inventory.mts \
     > "$work/runtime-files-$architecture.sha256"
   cmp "$work/runtime-files-$architecture.sha256" "$output/seed/linux_$architecture/runtime-files.sha256"
   # Verify the notices actually shipped in the image, not only package/code hashes.
@@ -44,7 +44,6 @@ for architecture in amd64 arm64; do
     relative="${notice#"$output/project/image/legal/"}"
     cmp "$notice" "$license_dir/$relative"
   done < <(find "$output/project/image/legal" -type f -print0)
-  diff -r "$output/seed/linux_$architecture/licenses/go" "$license_dir/go"
 done
 if [[ "$mode" == --local ]]; then
   echo 'Lokale Artefakte und Image stimmen überein. Öffentliche Quellenbereitstellung noch nicht geprüft.'

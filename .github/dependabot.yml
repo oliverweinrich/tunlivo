@@ -36,13 +36,6 @@ updates:
     groups:
       github-actions:
         patterns: ['*']
-  - package-ecosystem: gomod
-    directory: /image/pairing
-    schedule:
-      interval: weekly
-      day: monday
-      time: '06:00'
-      timezone: Europe/Berlin
   - package-ecosystem: npm
     directory: /
     schedule:

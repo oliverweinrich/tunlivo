@@ -24,7 +24,7 @@ jobs:
           TUNLIVO_REPOSITORY: ${{ vars.DOCKERHUB_REPOSITORY || 'oliverweinrich/tunlivo' }}
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_OVERVIEW_TOKEN }}
-        run: node .github/dockerhub.cjs --output reports/dockerhub-overview.md --publish
+        run: node .github/dockerhub.mts --output reports/dockerhub-overview.md --publish
       - name: Save generated overview
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
