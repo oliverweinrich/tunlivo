@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // Copyright 2026 Oliver Weinrich
 // SPDX-License-Identifier: Apache-2.0
 import * as fs from 'node:fs';
@@ -545,7 +546,8 @@ async function main(): Promise<void> {
 }
 if (
   process.argv[1] &&
-  pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url
+  pathToFileURL(fs.realpathSync(path.resolve(process.argv[1]))).href ===
+    import.meta.url
 )
   main().catch(() => {
     console.error(

@@ -27,6 +27,6 @@ Current state is stored as JSON by the TypeScript pairing helper, retains the pr
 
 ## Release identity and notes
 
-Use `bash release/set-version.sh X.Y.Z` to update the central version and image references. Review the diff, merge through a PR, then tag the corrected commit on `main`. Choose a new unused version; do not move published tags or overwrite versioned images or archives.
+Use `node release/set-version.mts X.Y.Z` to update the central version and image references. The helper rejects lower versions and treats the current version as a no-op. Review the diff, merge through a PR, then tag the corrected commit on `main`. Choose a new unused version; do not move published tags or overwrite versioned images or archives.
 
 Each release note should state the user-visible changes, relevant dependency/security updates, supported platforms, any configuration/state/protocol changes, upgrade steps and rollback limitations. Link matching source/license assets. Use the [release checklist](RELEASE_CHECKLIST.md) to verify publication.

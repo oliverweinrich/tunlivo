@@ -5,9 +5,9 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import fs from 'node:fs';
 import { parse } from 'yaml';
-import type { Fetcher } from './dockerhub.mts';
-import { render, publish } from './dockerhub.mts';
-const root = path.resolve(import.meta.dirname, '..');
+import type { Fetcher } from '../../../.github/dockerhub.mts';
+import { render, publish } from '../../../.github/dockerhub.mts';
+const root = path.resolve(import.meta.dirname, '../../..');
 const env = { DOCKERHUB_USERNAME: 'test-user', DOCKERHUB_TOKEN: 'test-secret' };
 
 test('overview uses current version, immutable links and actual Compose examples', () => {

@@ -11,5 +11,11 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["image/runtime/**/*.mts", ".github/**/*.mts"]
+  "include": [
+    "image/runtime/**/*.mts",
+    ".github/**/*.mts",
+    "scripts/**/*.mts",
+    "release/**/*.mts",
+    "tests/**/*.mts"
+  ]
 }

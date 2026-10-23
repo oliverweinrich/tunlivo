@@ -3,5 +3,8 @@
 ARG ALPINE_IMAGE
 FROM ${ALPINE_IMAGE}
 RUN apk add --no-cache bash abuild curl grep tar xz zstd nodejs
-COPY collect-sources.sh /usr/local/bin/collect-sources
-ENTRYPOINT ["/bin/bash", "/usr/local/bin/collect-sources"]
+WORKDIR /tools
+COPY release/ /tools/release/
+COPY scripts/lib.mts /tools/scripts/lib.mts
+COPY tests/tooling/release/ /tools/tests/tooling/release/
+ENTRYPOINT ["node", "release/collect-sources.mts"]

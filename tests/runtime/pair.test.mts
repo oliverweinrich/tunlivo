@@ -17,8 +17,8 @@ import {
   invitation,
   pairingServer,
   pinnedRequest,
-} from './pair.mts';
-import { inventory } from './inventory.mts';
+} from '../../image/runtime/pair.mts';
+import { inventory } from '../../image/runtime/inventory.mts';
 const publicKey = (n: number) => Buffer.alloc(32, n).toString('base64');
 function fixture(t: TestContext): string {
   const old = process.env.PAIR_DATA_DIR;
@@ -68,7 +68,7 @@ test('concurrent processes redeem a token for only one distinct identity', async
         '-o',
         path.join(process.env.PAIR_DATA_DIR!, 'state.lock'),
         process.execPath,
-        new URL('./pair.mts', import.meta.url).pathname,
+        new URL('../../image/runtime/pair.mts', import.meta.url).pathname,
         '--locked',
         'register',
         '10.66.66.1/32',

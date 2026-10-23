@@ -12,6 +12,7 @@ Operational references: [release checklist](../docs/RELEASE_CHECKLIST.md), [vers
 | Push a new `vX.Y.Z` tag, or manually run **Publish release** on `main` | Prepare matching source/license archives, build and test both architectures, scan the actual images, publish GitHub assets, then Docker source/runtime images.                                                                                                                                                  |
 
 Updates are not merged automatically. A merged dependency update does not publish an image.
+Node type declarations follow the supported Node 24 major. Dependabot updates `@types/node` within 24, but major type-declaration upgrades are excluded until the runtime major is reviewed too.
 The runtime is native TypeScript on the Alpine Node.js package, without runtime npm modules. Development tools use TypeScript, `@types/node` and the existing pinned npm tools. Node runtime updates come through fresh Alpine builds/scans; the `.node-version` development major remains a manual review.
 Alpine packages installed by `apk add` need the scheduled fresh build because Dependabot cannot update those unpinned package versions.
 Fresh builds run `apk upgrade` before installing the application packages, so updates to existing base packages such as BusyBox and musl are included as well.
@@ -33,7 +34,7 @@ npm run test:tooling
 
 CI generates the offline report for each native check and uploads it with maintenance reports; it does not fail a dependency PR because the committed snapshot has not been regenerated. Refresh the committed document after dependency changes or during release review. Source helper packages are rebuilt and scanned in CI, with their separate inventory in `source-helper-packages.tsv`. The release workflow scans the actual helper again before proceeding.
 
-Dockerfile pins use the `docker` updater; Compose examples use `docker-compose`. The examples' own `oliverweinrich/tunlivo` references are excluded because `release/set-version.sh` controls them. Alpine package versions and the Node major are not independently updated by Dependabot; see the inventory's coverage boundaries.
+Dockerfile pins use the `docker` updater; Compose examples use `docker-compose`. The examples' own `oliverweinrich/tunlivo` references are excluded because `release/set-version.mts` controls them. Alpine package versions and the Node major are not independently updated by Dependabot; see the inventory's coverage boundaries.
 
 ## Formatting and Git hooks
 
@@ -56,7 +57,7 @@ npm run format
 npm run format:check
 ```
 
-`.prettierrc.json` contains the shared formatting rules. VS Code settings enable format-on-save for supported languages with the recommended Prettier extension. TypeScript is checked separately with `npm run typecheck`; Bash and Dockerfiles are not formatted by this Prettier configuration.
+`.prettierrc.json` contains the shared formatting rules. VS Code settings enable format-on-save for supported languages with the recommended Prettier extension. TypeScript is checked separately with `npm run typecheck`; Dockerfiles and upstream Shell recipes are not formatted by this Prettier configuration.
 License/notice files, private configuration and generated artifacts are excluded. The formatter tools and `node_modules` are not included in the runtime image. Dependabot also monitors the pinned npm tooling dependencies.
 
 ## One-time GitHub setup
@@ -85,7 +86,7 @@ Checks and Dependabot pull requests do not receive Docker Hub credentials. Only 
 
 ```sh
 next_version=X.Y.Z
-bash release/set-version.sh "$next_version"
+node release/set-version.mts "$next_version"
 git diff
 ```
 
@@ -151,26 +152,37 @@ For text corrections or a failed metadata sync, merge the fix and run **Actions 
 
 If this final metadata step fails, the images may already be published successfully. Retry **Update Docker Hub overview**, not the entire immutable release pipeline. The overview workflow shares the release concurrency group to avoid conflicting updates. Public live API writes are not part of local tests; unit tests use simulated responses.
 
+## Tests and project layout
+
+One root `package.json` and lockfile cover the runtime, tests and tools. All tests/fixtures are under `tests/`:
+
+- `tests/runtime/`: pairing and runtime security tests, executed inside the Linux image.
+- `tests/tooling/github/`: automation, dependency policy and repository structure tests.
+- `tests/tooling/release/`: version, publication, checksum and Linux ownership tests.
+- `tests/integration/`: isolated Docker TCP/UDP, pairing, restart and Go compatibility tests.
+
+`npm test` runs host-side tooling tests. `npm run test:integration` and `npm run test:compatibility` require Docker and a built image; `TUNLIVO_TEST_IMAGE` selects it. Runtime tests are run by CI with Node inside the image. Both Dockerfiles use the repository root context and root `.dockerignore` allowlist.
+
 ## Local validation and release preparation
 
 ```sh
 version="$(cat VERSION)"
-docker build --build-arg VERSION="$version" -t "tunlivo:$version" image
-bash test-integration.sh
+docker build --build-arg VERSION="$version" -t "tunlivo:$version" -f image/Dockerfile .
+npm run test:integration
 ```
 
-Preparing release archives requires Node.js 24+, a multi-platform Docker builder, AMD64/ARM64 emulation if needed, `curl`, and `shasum`:
+Preparing release archives requires Node.js 24+, a multi-platform Docker builder, AMD64/ARM64 emulation if needed, `curl`, and GNU-compatible archive tools in the source helper:
 
 ```sh
-bash release/prepare.sh
+node release/prepare.mts
 docker buildx build --platform linux/amd64,linux/arm64 --load \
-  --build-arg VERSION="$(cat VERSION)" -t "tunlivo:$(cat VERSION)" image
-bash release/check.sh --local
+  --build-arg VERSION="$(cat VERSION)" -t "tunlivo:$(cat VERSION)" -f image/Dockerfile .
+node release/check.mts --local
 ```
 
-`prepare.sh` deliberately refreshes the runtime package layer. The final build must reuse that builder/cache; do not add `--no-cache` between source collection and the final build. The release check rejects mismatched package inventories, runtime files, versions or license files.
-It refuses to overwrite an already completed output directory. For isolated testing, set `TUNLIVO_RELEASE_DIR` to a new absolute path for both prepare/check commands. All already published artifacts must remain unchanged.
+`prepare.mts` deliberately refreshes the runtime package layer. The final build must reuse that builder/cache; do not add `--no-cache` between source collection and the final build. The release check rejects mismatched package inventories, runtime files, versions or license files.
+Retries reverify retained source bytes against the exact Alpine recipe checksums, even when a `VERIFIED` marker exists. Verification uses disposable copies because `abuild` deletes damaged inputs. A checksum or recipe-version mismatch blocks preparation; inspect the failed output and prepare into a new directory instead of silently repairing evidence. It refuses to overwrite an already completed output directory. For isolated testing, set `TUNLIVO_RELEASE_DIR` to a new absolute path for both prepare/check commands. All already published artifacts must remain unchanged.
 `TUNLIVO_CACHE_DIR` can select a download-cache directory. `TUNLIVO_REFRESH=0` reuses the Docker build cache for debugging; release workflows use the fresh default.
 
-Do not run `release/publish.sh` as a test: it publishes publicly. `--check` performs only preflight checks and requires an authenticated GitHub CLI.
+Do not run `release/publish.mts` as a test: it publishes publicly. `--check` performs only preflight checks and requires an authenticated GitHub CLI.
 The hosted GitHub Actions run and secret configuration must be verified after pushing; local tests cannot validate GitHub environment settings or Docker Hub token permissions.

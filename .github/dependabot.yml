@@ -43,6 +43,9 @@ updates:
       day: monday
       time: '06:00'
       timezone: Europe/Berlin
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
-      formatting-tools:
+      development-tools:
         patterns: ['*']

@@ -164,7 +164,7 @@ async function start(): Promise<void> {
     if (!['manual', 'server', 'client'].includes(mode))
       throw new Error('Invalid PAIR_MODE');
     if (mode === 'server') {
-      child(process.execPath, ['/usr/local/share/tunlivo/pair.mts', 'serve']);
+      child(process.execPath, ['/opt/tunlivo/image/runtime/pair.mts', 'serve']);
       while (true) {
         if (closing || failure) throw new Error('Pairing service stopped');
         try {
@@ -177,7 +177,7 @@ async function start(): Promise<void> {
     } else if (mode === 'client') {
       await new Promise<void>((resolve, reject) => {
         const c = child(process.execPath, [
-          '/usr/local/share/tunlivo/pair.mts',
+          '/opt/tunlivo/image/runtime/pair.mts',
           'join',
         ]);
         c.once('exit', (code) =>

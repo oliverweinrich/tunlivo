@@ -3,10 +3,10 @@
 import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-const root = path.resolve(import.meta.dirname, '..');
+const root = path.resolve(import.meta.dirname, '../..');
 const baseline = JSON.parse(
   fs.readFileSync(
-    path.join(root, '.github/compatibility-baseline.json'),
+    path.join(root, 'tests/integration/compatibility-baseline.json'),
     'utf8',
   ),
 ) as { image: string };
@@ -25,9 +25,9 @@ for (const [server, client, restart] of [
   [candidate, candidate, baseline.image],
 ]) {
   console.log(
-    'Checking Go/TypeScript wire compatibility and persisted-volume upgrade.',
+    `Checking compatibility: server=${server === baseline.image ? 'Go' : 'TypeScript'}, client=${client === baseline.image ? 'Go' : 'TypeScript'}, recreate=${restart === baseline.image ? 'Go' : 'TypeScript'}.`,
   );
-  execFileSync('bash', ['test-integration.sh'], {
+  execFileSync(process.execPath, ['tests/integration/run.mts'], {
     cwd: root,
     stdio: 'inherit',
     env: {

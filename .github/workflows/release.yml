@@ -30,14 +30,7 @@ jobs:
           npm run format:check
           npm audit --audit-level=high
       - name: Validate release ref
-        run: |
-          source release/common.sh
-          git merge-base --is-ancestor HEAD origin/main
-          if test "$GITHUB_REF_TYPE" = tag; then
-            test "$GITHUB_REF_NAME" = "v$version"
-          else
-            test "$GITHUB_REF" = refs/heads/main
-          fi
+        run: node scripts/ci.mts release-ref
       - uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0
         with:
           daemon-config: |
@@ -47,21 +40,15 @@ jobs:
         with:
           driver: docker
       - name: Prepare matching sources and licenses with fresh packages
-        run: bash release/prepare.sh
+        run: node release/prepare.mts
       - name: Scan source collection dependencies
         run: |
           TUNLIVO_SCAN_REPORT="$PWD/release-output/$(cat VERSION)/trivy-source-helper.json" \
-            bash .github/scan.sh tunlivo-source-helper:local
+            node scripts/scan.mts tunlivo-source-helper:local
       - name: Build the final multi-platform image
-        run: |
-          docker buildx build --platform linux/amd64,linux/arm64 --load             --build-arg VERSION="$(cat VERSION)" -t "tunlivo:$(cat VERSION)" image
-          bash release/check.sh --local
+        run: node scripts/ci.mts build-candidate
       - name: Scan the tested image for both platforms
-        run: |
-          for arch in amd64 arm64; do
-            TUNLIVO_SCAN_REPORT="$PWD/release-output/$(cat VERSION)/trivy-$arch.json" \
-              bash .github/scan.sh "tunlivo:$(cat VERSION)" "linux/$arch"
-          done
+        run: node scripts/ci.mts scan-candidate
       - name: Save release files for diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -76,11 +63,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - name: Export the exact release candidate
-        run: |
-          mkdir -p candidate
-          docker image save -o candidate/image.tar "tunlivo:$(cat VERSION)"
-          (cd candidate && sha256sum image.tar > image.tar.sha256)
-          tar -czf candidate/release-state.tar.gz "release-output/$(cat VERSION)"
+        run: node scripts/ci.mts export-candidate
       - name: Transfer candidate image
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -130,13 +113,10 @@ jobs:
           DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
           EXPECTED_ARCH: ${{ matrix.arch }}
         run: |
-          (cd candidate && sha256sum -c image.tar.sha256)
-          docker image load -i candidate/image.tar
-          test "$(docker info --format '{{.Architecture}}')" = "$(case "$EXPECTED_ARCH" in amd64) echo x86_64 ;; arm64) echo aarch64 ;; esac)"
-          test "$(docker image inspect --platform "linux/$EXPECTED_ARCH" --format '{{.Architecture}}' "tunlivo:$(cat VERSION)")" = "$EXPECTED_ARCH"
+          node scripts/ci.mts load-candidate
           sudo modprobe wireguard
-          docker run --rm --network none --read-only --tmpfs /tmp --entrypoint node "tunlivo:$(cat VERSION)" --test /usr/local/share/tunlivo/pair.test.mts
-          bash test-integration.sh
+          docker run --rm --network none --read-only --tmpfs /tmp --entrypoint node "tunlivo:$(cat VERSION)" --test /opt/tunlivo/tests/runtime/pair.test.mts
+          npm run test:integration
           npm run test:compatibility
   release:
     name: Publish tested release
@@ -174,30 +154,22 @@ jobs:
       - name: Validate unused version before publication
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash release/publish.sh --check
+        run: node release/publish.mts --check
       - name: Restore the tested image and matching sources
-        run: |
-          (cd candidate && sha256sum -c image.tar.sha256)
-          docker image load -i candidate/image.tar
-          tar -xzf candidate/release-state.tar.gz
-          bash release/check.sh --local
+        run: node scripts/ci.mts restore-release
       - name: Validate overview credentials before image publication
         env:
           DOCKERHUB_OVERVIEW_TOKEN: ${{ secrets.DOCKERHUB_OVERVIEW_TOKEN }}
-        run: |
-          : "${DOCKERHUB_OVERVIEW_TOKEN:?Set DOCKERHUB_OVERVIEW_TOKEN with read/write/delete access in the dockerhub environment}"
+        run: node scripts/ci.mts check-overview-token
       - name: Log in to Docker Hub
         env:
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          : "${DOCKERHUB_USERNAME:?Set the DOCKERHUB_USERNAME variable in the dockerhub environment}"
-          : "${DOCKERHUB_TOKEN:?Set the DOCKERHUB_TOKEN secret in the dockerhub environment}"
-          printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+        run: node scripts/ci.mts docker-login
       - name: Publish sources, GitHub release and tested Docker images
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash release/publish.sh
+        run: node release/publish.mts
       - name: Update and verify Docker Hub overview
         env:
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}

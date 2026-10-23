@@ -42,59 +42,31 @@ jobs:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Validate scripts and prepare host
         run: |
-          for file in image/*.sh release/*.sh .github/*.sh test-integration.sh; do bash -n "$file"; done
-          source release/common.sh
-          mkdir -p reports
-          bash release/test.sh
-          npm run test:tooling
-          npm run dockerhub:preview
+          node scripts/ci.mts host
           sudo modprobe wireguard
       - name: Build with fresh Alpine packages
         id: build
         run: |
-          docker buildx build --pull --no-cache-filter runtime --load             --build-arg VERSION="$(cat VERSION)" -t tunlivo:ci image
+          docker buildx build --pull --no-cache-filter runtime --load             --build-arg VERSION="$(cat VERSION)" -t tunlivo:ci -f image/Dockerfile .
       - name: Test runtime security and compatibility
-        run: docker run --rm --network none --read-only --tmpfs /tmp --entrypoint node tunlivo:ci --test /usr/local/share/tunlivo/pair.test.mts
+        run: docker run --rm --network none --read-only --tmpfs /tmp --entrypoint node tunlivo:ci --test /opt/tunlivo/tests/runtime/pair.test.mts
       - name: Test release output permissions
-        run: bash release/test-permissions.sh tunlivo:ci
+        run: node tests/tooling/release/run-permissions.mts tunlivo:ci
       - name: Build and scan source collection dependencies
-        run: |
-          alpine_image="$(awk '$1=="FROM" && $3=="AS" && $4=="runtime" {print $2}' image/Dockerfile)"
-          docker build --pull --no-cache --build-arg "ALPINE_IMAGE=$alpine_image" \
-            -f release/Source.Dockerfile -t tunlivo:source-helper-check release
-          docker run --rm --network none --entrypoint node \
-            -v "$PWD/image/runtime/inventory.mts:/inventory.mts:ro" tunlivo:source-helper-check \
-            /inventory.mts /lib/apk/db/installed > reports/source-helper-packages.tsv
-          npm run dependencies:report
-          TUNLIVO_SCAN_REPORT="$PWD/reports/trivy-source-helper.json" \
-            bash .github/scan.sh tunlivo:source-helper-check
+        run: node scripts/ci.mts helper-inventory
       - name: Compare installed packages with the published image
-        run: |
-          docker run --rm --network none --entrypoint cat tunlivo:ci             /usr/share/licenses/tunlivo/packages.tsv > reports/packages-candidate.tsv
-          docker pull oliverweinrich/tunlivo:latest
-          docker run --rm --network none --entrypoint cat oliverweinrich/tunlivo:latest             /usr/share/licenses/tunlivo/packages.tsv > reports/packages-published.tsv
-          status=0
-          diff -u reports/packages-published.tsv reports/packages-candidate.tsv > reports/packages.diff || status=$?
-          test "$status" -le 1
-          if test -s reports/packages.diff; then
-            echo '### Package changes compared with latest' >> "$GITHUB_STEP_SUMMARY"
-            echo '```diff' >> "$GITHUB_STEP_SUMMARY"
-            cat reports/packages.diff >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo 'Installed package inventory matches the published image.' >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: node scripts/ci.mts compare-packages
       - name: Test forwarding, pairing and restart behavior
         env:
           TUNLIVO_TEST_IMAGE: tunlivo:ci
-        run: bash test-integration.sh
+        run: npm run test:integration
       - name: Test immutable Go baseline and persisted-volume upgrades
         env:
           TUNLIVO_TEST_IMAGE: tunlivo:ci
         run: npm run test:compatibility
       - name: Scan for known vulnerabilities
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: bash .github/scan.sh tunlivo:ci
+        run: node scripts/scan.mts tunlivo:ci
       - name: Upload maintenance reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
