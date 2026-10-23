@@ -8,15 +8,23 @@
   "scripts": {
     "prepare": "husky",
     "typecheck": "tsc --noEmit",
-    "test:runtime": "node --test image/runtime/*.test.mts",
+    "test:runtime": "node --test tests/runtime/*.test.mts",
     "format": "prettier --write . --ignore-unknown",
     "format:check": "prettier --check . --ignore-unknown",
     "format:staged": "lint-staged",
     "dependencies": "node .github/dependencies.mts --write && prettier --write DEPENDENCIES.md",
     "dependencies:report": "node .github/dependencies.mts --offline --output reports/dependencies.md",
-    "test:tooling": "node --test .github/*.test.mts",
+    "test:tooling": "node --test 'tests/tooling/**/*.test.mts'",
     "dockerhub:preview": "node .github/dockerhub.mts --output reports/dockerhub-overview.md",
-    "test:compatibility": "node .github/test-compatibility.mts"
+    "test:compatibility": "node tests/integration/compatibility.mts",
+    "test:integration": "node tests/integration/run.mts",
+    "test:release": "node --test tests/tooling/release/*.test.mts",
+    "scan": "node scripts/scan.mts",
+    "release:prepare": "node release/prepare.mts",
+    "release:check": "node release/check.mts --local",
+    "release:publish": "node release/publish.mts",
+    "version:set": "node release/set-version.mts",
+    "test": "npm run test:tooling"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

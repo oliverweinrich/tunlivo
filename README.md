@@ -21,7 +21,7 @@ To build the image locally, run this from the repository root:
 
 ```sh
 version="$(cat VERSION)"
-docker build --build-arg VERSION="$version" -t "oliverweinrich/tunlivo:$version" -t "tunlivo:$version" image
+docker build --build-arg VERSION="$version" -t "oliverweinrich/tunlivo:$version" -t "tunlivo:$version" -f image/Dockerfile .
 ```
 
 ## Requirements
@@ -177,7 +177,7 @@ See [configuration details](examples/CONFIGURATION.md) for all variables.
 To run the isolated Docker integration tests after the local build above:
 
 ```sh
-bash test-integration.sh
+npm run test:integration
 ```
 
 ## Runtime implementation

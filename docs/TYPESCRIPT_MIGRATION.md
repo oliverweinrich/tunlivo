@@ -8,15 +8,17 @@ This migration is prepared for **1.0.4**. It is a compatible runtime refactor, n
 
 The image installs Node.js, OpenSSL and flock from the pinned Alpine branch. OpenSSL replaces Go's certificate generation; flock retains the existing OS-level cross-process lock. No npm packages are installed in the runtime. The compiler, Node types, YAML parser and formatting tools are development dependencies.
 
-`image/runtime/pair.mts` replaces Go enrollment; `gateway.mts` replaces the shell application lifecycle/configuration/health logic; `inventory.mts` replaces AWK package parsing. Existing `gateway-pair`, `entrypoint.sh`, `healthcheck.sh` and `configure.sh` executable paths remain thin compatibility launchers. Repository tools and tests use `.mts` rather than CommonJS `.cjs`.
+`image/runtime/pair.mts` replaces Go enrollment; `gateway.mts` replaces the shell application lifecycle/configuration/health logic; `inventory.mts` replaces AWK package parsing. Docker starts the TypeScript runtime and health command directly. The public `gateway-pair` CLI is a symlink to the executable TypeScript enrollment module; own Shell launchers have been removed. Repository tools and tests use `.mts` rather than CommonJS `.cjs`.
 
-Release/source-collection scripts and the Docker integration harness remain Bash orchestration. Official Alpine APKBUILD recipes and `wg-quick` also require Bash. They have not been disguised as TypeScript strings or rewritten as a custom package builder. These scripts are packaged and tested alongside the application.
+Release/source collection, scanning and Docker integration tests also use TypeScript. Official Alpine APKBUILD recipes and `wg-quick` remain upstream Bash programs. The collector invokes only the official recipe expressions through Bash; own orchestration does not embed Shell programs. Husky's two one-line npm launchers and Docker/Actions command integration are tool interfaces.
+
+All tests and fixtures live in `tests/runtime/`, `tests/tooling/` and `tests/integration/`. A single root `package.json`, lockfile and strict TypeScript configuration cover the project. Both Dockerfiles use the repository root as their build context; use `docker build -f image/Dockerfile .`.
 
 ## Existing deployments
 
 Environment variables, published ports, manual peers and the `gateway-pair` CLI remain compatible. Existing JSON keeps Go's PascalCase fields and base64 PEM encoding. Startup does not rotate keys, rewrite state, expire an existing association or require a new invitation. The same flock lock file protects CLI and server changes. New state/certificates use the same interoperable protocol and can be read by the old implementation.
 
-Compatibility checks use an immutable published Go baseline and cover mixed peer implementations and recreating both gateway containers with unchanged old state volumes, plus rolling back newly created state to the Go baseline. Never use production volumes in tests. See `npm run test:compatibility` and `.github/compatibility-baseline.json`.
+Compatibility checks use an immutable published Go baseline and cover mixed peer implementations and recreating both gateway containers with unchanged old state volumes, plus rolling back newly created state to the Go baseline. Never use production volumes in tests. See `npm run test:compatibility` and `tests/integration/compatibility-baseline.json`.
 
 ## Image and source archive size
 

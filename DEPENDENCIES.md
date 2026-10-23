@@ -15,46 +15,46 @@ Generated with `npm run dependencies`. This is an informational snapshot, not an
 
 | Dependency             | Configured version / pin             | Last pin change | Source                                 | Dependabot / maintenance     |
 | ---------------------- | ------------------------------------ | --------------- | -------------------------------------- | ---------------------------- |
-| oliverweinrich/tunlivo | 1.0.4                                | Uncommitted     | `examples/compose.manual-client.yaml`  | Excluded; release-managed    |
+| oliverweinrich/tunlivo | 1.0.4                                | 2026-10-22      | `examples/compose.manual-client.yaml`  | Excluded; release-managed    |
 | nginx                  | stable-alpine (sha256:970364228b1e…) | 2026-10-20      | `examples/compose.manual-client.yaml`  | Yes (docker-compose; weekly) |
-| oliverweinrich/tunlivo | 1.0.4                                | Uncommitted     | `examples/compose.manual-server.yaml`  | Excluded; release-managed    |
-| oliverweinrich/tunlivo | 1.0.4                                | Uncommitted     | `examples/compose.pairing-client.yaml` | Excluded; release-managed    |
+| oliverweinrich/tunlivo | 1.0.4                                | 2026-10-22      | `examples/compose.manual-server.yaml`  | Excluded; release-managed    |
+| oliverweinrich/tunlivo | 1.0.4                                | 2026-10-22      | `examples/compose.pairing-client.yaml` | Excluded; release-managed    |
 | nginx                  | stable-alpine (sha256:970364228b1e…) | 2026-10-20      | `examples/compose.pairing-client.yaml` | Yes (docker-compose; weekly) |
-| oliverweinrich/tunlivo | 1.0.4                                | Uncommitted     | `examples/compose.pairing-server.yaml` | Excluded; release-managed    |
+| oliverweinrich/tunlivo | 1.0.4                                | 2026-10-22      | `examples/compose.pairing-server.yaml` | Excluded; release-managed    |
 
 ## npm tooling
 
 | Dependency                                         | Configured version / pin | Last pin change | Source              | Dependabot / maintenance                             |
 | -------------------------------------------------- | ------------------------ | --------------- | ------------------- | ---------------------------------------------------- |
-| @types/node (direct)                               | 24.19.2                  | Uncommitted     | `package.json`      | Yes (npm; weekly)                                    |
-| @typescript/typescript-aix-ppc64 (transitive)      | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-darwin-arm64 (transitive)   | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-darwin-x64 (transitive)     | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-freebsd-arm64 (transitive)  | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-freebsd-x64 (transitive)    | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-linux-arm (transitive)      | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-linux-arm64 (transitive)    | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-linux-loong64 (transitive)  | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-linux-mips64el (transitive) | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-linux-ppc64 (transitive)    | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-linux-riscv64 (transitive)  | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-linux-s390x (transitive)    | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-linux-x64 (transitive)      | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-netbsd-arm64 (transitive)   | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-netbsd-x64 (transitive)     | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-openbsd-arm64 (transitive)  | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-openbsd-x64 (transitive)    | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-sunos-x64 (transitive)      | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-win32-arm64 (transitive)    | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| @typescript/typescript-win32-x64 (transitive)      | 7.0.2                    | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @types/node (direct)                               | 24.19.2                  | 2026-10-22      | `package.json`      | Yes (npm; weekly; major upgrades excluded)           |
+| @typescript/typescript-aix-ppc64 (transitive)      | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-darwin-arm64 (transitive)   | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-darwin-x64 (transitive)     | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-freebsd-arm64 (transitive)  | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-freebsd-x64 (transitive)    | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-linux-arm (transitive)      | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-linux-arm64 (transitive)    | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-linux-loong64 (transitive)  | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-linux-mips64el (transitive) | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-linux-ppc64 (transitive)    | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-linux-riscv64 (transitive)  | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-linux-s390x (transitive)    | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-linux-x64 (transitive)      | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-netbsd-arm64 (transitive)   | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-netbsd-x64 (transitive)     | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-openbsd-arm64 (transitive)  | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-openbsd-x64 (transitive)    | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-sunos-x64 (transitive)      | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-win32-arm64 (transitive)    | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| @typescript/typescript-win32-x64 (transitive)      | 7.0.2                    | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
 | husky (direct)                                     | 9.1.7                    | 2026-10-21      | `package.json`      | Yes (npm; weekly)                                    |
 | lint-staged (direct)                               | 17.6.0                   | 2026-10-21      | `package.json`      | Yes (npm; weekly)                                    |
 | picomatch (transitive)                             | 4.0.7                    | 2026-10-21      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
 | prettier (direct)                                  | 3.9.10                   | 2026-10-21      | `package.json`      | Yes (npm; weekly)                                    |
 | string-argv (transitive)                           | 0.3.2                    | 2026-10-21      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
 | tinyexec (transitive)                              | 1.3.1                    | 2026-10-21      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
-| typescript (direct)                                | 7.0.2                    | Uncommitted     | `package.json`      | Yes (npm; weekly)                                    |
-| undici-types (transitive)                          | 7.24.6                   | Uncommitted     | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
+| typescript (direct)                                | 7.0.2                    | 2026-10-22      | `package.json`      | Yes (npm; weekly)                                    |
+| undici-types (transitive)                          | 7.24.6                   | 2026-10-22      | `package-lock.json` | Yes (npm; weekly); lockfile/parent constraints apply |
 | yaml (direct)                                      | 2.9.1                    | 2026-10-21      | `package.json`      | Yes (npm; weekly)                                    |
 
 ## GitHub Actions
@@ -189,11 +189,11 @@ Local/CI helper inventory observed 2026-10-22, from `reports/source-helper-packa
 ## Coverage boundaries
 
 - The source helper inherits `ALPINE_IMAGE` from the pinned runtime base; it has no separate image pin for Dependabot to update. Its `bash abuild curl grep tar xz zstd nodejs` packages (and their dependencies) resolve when that helper is built, not from the runtime TSV. CI rebuilds and scans this helper; its exact inventory is a separate report artifact.
-- `oliverweinrich/tunlivo` in the examples is this project's output, explicitly excluded from Dependabot. `release/set-version.sh` owns those references.
+- `oliverweinrich/tunlivo` in the examples is this project's output, explicitly excluded from Dependabot. `release/set-version.mts` owns those references.
 - `.node-version` and the Node engine requirement need manual major-version review. GitHub-hosted runner OS, Docker/Compose and QEMU installed by setup actions follow their providers/action inputs; host OS/kernel/Docker maintenance remains the operator's responsibility.
-- TypeScript and Node type declarations are development dependencies maintained by the npm updater. Runtime Node.js is an Alpine package maintained through fresh builds/scans. npm security updates/alerts additionally require GitHub repository settings to be enabled; lockfile updates must respect parent constraints.
+- TypeScript and Node type declarations are development dependencies maintained by the npm updater. Major `@types/node` upgrades are excluded to match the supported Node 24 runtime; upgrade runtime and type declarations together during a reviewed major migration. Runtime Node.js is an Alpine package maintained through fresh builds/scans. npm security updates/alerts additionally require GitHub repository settings to be enabled; lockfile updates must respect parent constraints.
 - Trivy's vulnerability database refreshes during scans. The scanner image pin is maintained by Dependabot; software inside third-party images/actions is maintained indirectly through those upstream releases, not as separate Tunlivo manifests.
-- The immutable image in `.github/compatibility-baseline.json` is a deliberate historical test fixture, excluded from normal updates. It is pulled only by compatibility tests, not installed in the runtime; changing it would lose the migration baseline.
+- The immutable image in `tests/integration/compatibility-baseline.json` is a deliberate historical test fixture, excluded from normal updates. It is pulled only by compatibility tests, not installed in the runtime; changing it would lose the migration baseline.
 - Optional local tools such as `actionlint`, Git and the VS Code Prettier extension are not repository-pinned dependencies and require local maintenance.
 
 The machine-readable sources of truth are manifests/lockfiles and each release's package inventory. For a standardized full image SBOM (SPDX/CycloneDX), use an image-aware SBOM tool against an immutable image digest; this Markdown file and `packages.tsv` are not substitutes for a complete SBOM.

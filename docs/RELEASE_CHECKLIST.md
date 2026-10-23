@@ -7,9 +7,9 @@ Use this for each release; record the actual version, commit, workflow URL and v
 - [ ] Choose a new version using [the compatibility policy](VERSIONING.md). Review configuration, persisted-state and protocol changes, including rollback limits.
 - [ ] Refresh `DEPENDENCIES.md` with `npm run dependencies` and review its coverage boundaries. The installed-package snapshot refers to the latest already-published release; regenerate again after publication if desired.
 - [ ] Review dependency/security changes. Confirm both required PR checks, `Check (amd64)` and `Check (arm64)`, pass. Do not waive a platform failure to publish.
-- [ ] Run `bash release/set-version.sh X.Y.Z`, review the changed references and merge the release PR into `main`.
+- [ ] Run `node release/set-version.mts X.Y.Z`, review the changed references and merge the release PR into `main`.
 - [ ] Prepare release notes with upgrade/migration steps, security fixes and known limitations.
-- [ ] Confirm the version/tag is unused and tag the intended merged commit. Never run `release/publish.sh` as a dry run; its `--check` mode is the availability preflight.
+- [ ] Confirm the version/tag is unused and tag the intended merged commit. Never run `release/publish.mts` as a dry run; its `--check` mode is the availability preflight.
 
 ## Workflow gates
 

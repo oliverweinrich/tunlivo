@@ -9,7 +9,7 @@ import {
   coverage,
   runtimeInventory,
   render,
-} from './dependencies.mts';
+} from '../../../.github/dependencies.mts';
 
 test('coverage distinguishes Compose, missing updaters and release-managed images', () => {
   const config = {
@@ -51,7 +51,7 @@ test('runtime inventory preserves architecture-specific version differences', ()
 });
 
 test('every declared image, action and npm dependency has an update policy', () => {
-  const rows = collect(path.resolve(import.meta.dirname, '..'));
+  const rows = collect(path.resolve(import.meta.dirname, '../../..'));
   assert(rows.some((r) => r.name === 'alpine' && r.coverage.startsWith('Yes')));
   assert(
     rows.some(
@@ -59,6 +59,13 @@ test('every declared image, action and npm dependency has an update policy', () 
     ),
   );
   assert(rows.some((r) => r.name === 'yaml (direct)'));
+  assert(
+    rows.some(
+      (r) =>
+        r.name === '@types/node (direct)' &&
+        r.coverage.includes('major upgrades excluded'),
+    ),
+  );
   assert(rows.some((r) => r.name === 'picomatch (transitive)'));
   assert(rows.some((r) => r.name === 'actions/checkout'));
   assert.deepEqual(
@@ -81,7 +88,7 @@ test('example names are discoverable by the official Compose updater', () => {
   const pattern = /^(docker-)?compose(-[\w]+)?(\.[\w-]+)?\.ya?ml$/i;
 
   for (const name of fs
-    .readdirSync(path.resolve(import.meta.dirname, '../examples'))
+    .readdirSync(path.resolve(import.meta.dirname, '../../../examples'))
     .filter((f) => f.endsWith('.yaml'))) {
     assert.match(name, pattern);
   }

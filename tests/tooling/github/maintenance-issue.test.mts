@@ -5,8 +5,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import notify from './maintenance-issue.mts';
-import type { Issue, IssueChange } from './maintenance-issue.mts';
+import notify from '../../../.github/maintenance-issue.mts';
+import type {
+  Issue,
+  IssueChange,
+} from '../../../.github/maintenance-issue.mts';
 import type { TestContext } from 'node:test';
 
 function fixture(t: TestContext, existing: Issue[] = []) {
